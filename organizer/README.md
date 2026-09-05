@@ -39,8 +39,8 @@ Video timestamps are approximate. Web corroboration currently uses Wikipedia onl
 2. Add `organizer/compose.yaml` as a Compose override. Use a released organizer server
    image and matching worker version, or build both images from the same commit.
    Release jobs also attach Linux amd64 `organizer-image-server.tar.gz` and
-   `organizer-image-worker.tar.gz` files. If a first GHCR package is private, download
-   the matching pair from the GitHub release and run `docker load < organizer-image-worker.tar.gz`
+   `organizer-image-worker.tar.gz` files. Download the matching pair from the GitHub
+   release when you prefer an offline install and run `docker load < organizer-image-worker.tar.gz`
    and `docker load < organizer-image-server.tar.gz` before starting Compose. The archives
    carry the same source, revision, and version labels.
 3. Copy `.env.example` into the private deployment environment. Generate independent
@@ -245,8 +245,14 @@ This packaging method requires compatible dependencies. A dependency change requ
 Tag releases `organizer-vVERSION` to build matching server and worker images in GHCR.
 CI checks the worker with PostgreSQL, server types and organizer lint, web types, Svelte, component tests, and the isolated runtime.
 The release image job starts only after those checks pass. Both images carry source, revision, and version labels.
-First GHCR package publications can be private. Source labels do not change package visibility.
-Before announcing public images, set both package visibilities to public and check pulls without registry credentials.
+The alpha2 prerelease and both GHCR images are public. Tagged CI run `33994243613`
+verified the full tests, builds, isolated runtime, and matching image builds. Anonymous
+GHCR manifest requests for both images returned HTTP 200. The release also contains
+gzip-tested, Docker-loaded Linux amd64 archives and `SHA256SUMS`: the server archive is
+882632113 bytes with digest `sha256:cef90ae5526fdf052c1acae5269e49e690acd017c47204a5ccd09cc16103a438`,
+and the worker archive is 299340524 bytes with digest
+`sha256:bf6700d80bddd3799036aada54dfd0fe4767bec9bad92fa5c5be1578600a440e`.
+Archive labels identify commit `88260e1`. Source labels do not contain deployment secrets.
 Retain upstream tags, rebase the `organizer` branch deliberately, and repeat tests
 against each new upstream version. Native mobile organizer UI, speech transcription,
 automatic deletion, and cross-owner event inference are deferred.

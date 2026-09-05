@@ -32,15 +32,24 @@ must be published on the owner's GitHub.
   GPS, managed memberships, lost-ack undo recovery, pause, and access restrictions.
 - [x] Organizer UI: 12 component tests, TypeScript, Svelte, targeted lint, and production
   build passed before adding the Keeper UI.
-- [x] Revalidate the combined implementation locally. Published source is on branch
-  `organizer`; final hosted CI and release checks remain tracked below.
+- [x] Revalidate the combined implementation locally and publish the matching source.
+  Branch and tagged hosted validation are recorded below.
 
 Latest integration checkpoint: current worker tests passed 58 cases (runtime excluded),
 UI passed 15 component tests plus TypeScript/Svelte/build, native metadata unit tests
 and four real ExifTool tests passed. Coding Plan provider tests pass with synthetic HTTP
 and stdio MCP fixtures. The rebuilt isolated runtime passed nine checks,
 including Keeper tool calls/image hydration/session controls and organizer undo/access.
-Final hosted CI and release artifact verification are still required below.
+Branch CI run `33994238629` succeeded. Tagged CI run `33994243613` succeeded with
+the full worker/server/UI tests, builds, isolated runtime, and both image builds.
+Public prerelease `organizer-v0.1.0-alpha.2` is published. The release includes
+`SHA256SUMS`, a server archive of 882632113 bytes with digest
+`sha256:cef90ae5526fdf052c1acae5269e49e690acd017c47204a5ccd09cc16103a438`, and a
+worker archive of 299340524 bytes with digest
+`sha256:bf6700d80bddd3799036aada54dfd0fe4767bec9bad92fa5c5be1578600a440e`.
+Both gzip archives were tested, loaded into Docker, and verified as linux/amd64 with
+commit `88260e1` labels. Anonymous GHCR manifest requests for both public images
+returned HTTP 200.
 
 Provider validation boundary: a private live smoke authenticated the Coding Plan text
 endpoint and local MCP with the configured administrator-owned key, using only a public
@@ -126,9 +135,9 @@ useful empty/error states, and passing relevant UI checks.
   and the isolated Immich runtime test on the final commit.
 - [x] D2: Review Docker/Compose and CI. Server release image overlays compiled JS/web
   artifacts onto the pinned upstream runtime; dependencies must stay compatible.
-- [ ] D3: Add runtime test coverage to CI and verify final hosted results. Publish only
+- [x] D3: Add runtime test coverage to CI and verify final hosted results. Publish only
   synthetic fixtures and generic configuration. Inspect the staged diff for secrets.
-- [ ] D4: Publish matching server/worker prerelease images and a GitHub prerelease with
+- [x] D4: Publish matching server/worker prerelease images and a GitHub prerelease with
   exact validation and remaining limitations. Verify artifacts exist and are pullable.
 - [x] D5: Update project setup and operational docs with final architecture, API, configuration,
   backup/restore, upgrade, and undo instructions. Keep implementation limits explicit.

@@ -44,6 +44,16 @@ project's `ZaiVisionMcpProvider` then returned a fully schema-valid observation 
 public synthetic Immich logo with the expected top-level fields and removed its bounded
 temporary media directory.
 
+Branch CI run `33994238629` succeeded. Tagged CI run `33994243613` succeeded with the
+full tests, builds, isolated runtime, and both image builds. Public prerelease
+`organizer-v0.1.0-alpha.2` includes `SHA256SUMS` plus gzip-tested, Docker-loaded Linux
+amd64 archives. The server archive is 882632113 bytes with digest
+`sha256:cef90ae5526fdf052c1acae5269e49e690acd017c47204a5ccd09cc16103a438`; the worker
+archive is 299340524 bytes with digest
+`sha256:bf6700d80bddd3799036aada54dfd0fe4767bec9bad92fa5c5be1578600a440e`.
+Labels were verified against commit `88260e1`. Anonymous GHCR manifest requests for
+both public images returned HTTP 200.
+
 ## Private setup
 
 Copy `organizer/.env.example` to a deployment-only file. Set `ORGANIZER_SECRET`,
@@ -60,8 +70,7 @@ Immich media, sidecars, databases, and the organizer secret before enabling auto
 ## Known limitations
 
 - The live check was a public synthetic-logo provider smoke. It is not a private/real-photo
-  200-asset pilot or a production deployment; hosted CI and release artifact verification
-  remain external steps.
+  200-asset pilot or a production deployment. Physical mobile validation also remains incomplete.
 - MCP model selection is controlled by the bundled server; status labels it as the bundled
   MCP model rather than claiming a specific vision model.
 - A lost provider acknowledgment can cause an at-least-once retry and an additional quota
