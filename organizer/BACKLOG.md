@@ -8,7 +8,9 @@ The organizer lives inside Immich web, uses the existing login, and keeps the of
 mobile clients compatible. A small fork supplies UI/server integration; an internal
 worker handles analysis. First user: the library owner, with owner isolation throughout.
 
-GLM-5V is used for all reasoning. Analyze photos and sampled video frames, captions,
+The direct standard-API mode uses GLM-5V-compatible vision. The recommended shared-admin
+Z.AI Coding Plan mode uses GLM-5.3 for text/tool reasoning and the bundled Z.AI Vision
+MCP for image/video analysis. Analyze photos and sampled video frames, captions,
 objects, activities, OCR, date clues, visual geolocation, and event groups. Corroborate
 public places/events with web evidence. Automatic changes are enabled after a read-only
 200-asset pilot. Preserve credible EXIF and manual edits. Keep imprecise dates as ranges;
@@ -33,11 +35,17 @@ must be published on the owner's GitHub.
 - [x] Revalidate the combined implementation locally. Published source is on branch
   `organizer`; final hosted CI and release checks remain tracked below.
 
-Latest integration checkpoint: current worker tests passed 52 cases (runtime excluded),
+Latest integration checkpoint: current worker tests passed 58 cases (runtime excluded),
 UI passed 15 component tests plus TypeScript/Svelte/build, native metadata unit tests
-and four real ExifTool tests passed. The rebuilt isolated runtime passed nine checks,
+and four real ExifTool tests passed. Coding Plan provider tests pass with synthetic HTTP
+and stdio MCP fixtures. The rebuilt isolated runtime passed nine checks,
 including Keeper tool calls/image hydration/session controls and organizer undo/access.
 Final hosted CI and release artifact verification are still required below.
+
+Provider validation boundary: a private live smoke authenticated the Coding Plan text
+endpoint and local MCP with the configured administrator-owned key, using only a public
+synthetic logo. No key value is stored here. The smoke does not cover private-photo
+quality, the authorized 200-asset pilot, or a production deployment.
 
 ## Work ownership
 
@@ -127,9 +135,10 @@ useful empty/error states, and passing relevant UI checks.
 
 ### E — Live model pilot and rollout (external input pending)
 
-- [ ] E1: Obtain the PRIVATE LOCAL FILE PATH for the user's Z.ai key and exact endpoint/model.
-  A non-blocking question has already been sent. Do not request or print the key in chat.
-- [ ] E2: Verify the actual GLM endpoint with a synthetic image; no silent billing fallback.
+- [x] E1: Obtain the provider configuration through the private local secret handoff.
+  Never request, print, commit, or expose the key in chat or browser responses.
+- [x] E2: Verify the Coding Plan text endpoint and bundled Vision MCP with the public
+  synthetic Immich logo; no silent billing fallback.
 - [ ] E3: Run a 200-asset pilot with known controls and the archive's uncertain-date cases,
   with canonical metadata writes disabled. Measure results and quota usage.
 - [ ] E4: Validate undo/sidecars and mobile compatibility on a separate deployment; then
@@ -161,6 +170,21 @@ Use Luna with max reasoning for all subagents from this point onward.
   originals and existing sharing. Overall tasks may run for hours or days.
 - [x] F5 — All: test permission boundaries, model/tool failures, cancellation, restart
   recovery, duplicate scheduling, budget exhaustion, evidence integrity, and undo.
+
+Provider release note: `AI_PROVIDER=zai-coding-plan` is the shared-admin BYOK path. The
+worker sends text/tool turns to the Coding Plan endpoint with GLM-5.3 and sends bounded
+vision files to the pinned local `@z_ai/mcp-server@0.1.5` over stdio. `VISION_API_KEY`
+remains a compatibility alias; family accounts never receive provider credentials.
+Direct standard API mode remains available. Provider failures, missing keys, and MCP
+timeouts are surfaced without returning secrets. Real-provider billing, key handoff,
+and photo-quality validation remain in E3-E4.
+
+The live smoke returned HTTP 200 for Coding Plan `glm-5.3` text, rejected direct image
+content at that endpoint, and confirmed the general standard vision endpoint had no
+available balance. The official Vision MCP and the project's adapter produced a fully
+schema-valid observation for a public synthetic Immich logo and cleaned its temporary
+media directory. This does not certify private-photo quality, a 200-asset pilot, or
+production deployment.
 
 ## Local test environment
 

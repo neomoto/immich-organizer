@@ -1,6 +1,6 @@
 {
   "name": "immich-organizer-worker",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "private": true,
   "type": "module",
   "license": "AGPL-3.0",
@@ -11,6 +11,8 @@
     "manifest": "node src/manifest.mjs"
   },
   "dependencies": {
+    "@modelcontextprotocol/sdk": "1.26.0",
+    "@z_ai/mcp-server": "0.1.5",
     "postgres": "3.4.7"
   },
   "engines": {

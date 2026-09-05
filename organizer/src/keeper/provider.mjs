@@ -18,13 +18,16 @@ function combinedSignal(first, second) {
   return first || second;
 }
 
-function safeMessageContent(content) {
+function safeMessageContent(content, allowImages = true) {
   if (typeof content === "string") return visibleContent(content, 32_000);
   if (!Array.isArray(content)) return visibleContent(String(content ?? ""), 32_000);
+  if (!allowImages) {
+    return visibleContent(content.map((part) => part?.type === "text" ? String(part.text ?? "") : "[visual input handled by Vision MCP]").join("\n"), 32_000);
+  }
   return content.slice(0, 8).map((part) => {
     if (!part || typeof part !== "object") return { type: "text", text: visibleContent(String(part ?? ""), 4_000) };
     if (part.type === "text") return { type: "text", text: visibleContent(String(part.text ?? ""), 8_000) };
-    if (part.type === "image_url" && part.image_url && typeof part.image_url.url === "string" &&
+    if (allowImages && part.type === "image_url" && part.image_url && typeof part.image_url.url === "string" &&
       /^data:image\/[a-z0-9.+-]+;base64,[a-z0-9+/=_-]+$/i.test(part.image_url.url) && part.image_url.url.length <= 16 * 1024 * 1024) {
       // Image bytes are intentionally retained only in this in-memory request
       // body. They never pass through the keeper DB/event stream.
@@ -163,12 +166,13 @@ function responseToolCalls(body) {
 
 /** A deliberately small OpenAI-compatible adapter used by Keeper. */
 export class OpenAICompatibleProvider {
-  constructor({ sql, owner, config = {}, timeZone = "UTC", fetcher = fetch } = {}) {
+  constructor({ sql, owner, config = {}, timeZone = "UTC", fetcher = fetch, status } = {}) {
     this.sql = sql;
     this.owner = owner;
     this.config = config;
     this.timeZone = timeZone;
     this.fetcher = fetcher;
+    this.status = status;
   }
 
   async complete(messages, { tools = [], signal, maxTokens = 2000, temperature = 0.1 } = {}) {
@@ -177,13 +181,16 @@ export class OpenAICompatibleProvider {
     if (!base || !key) {
       const error = Error("Keeper model provider is not configured");
       error.configuration = true;
+      this.status && (this.status.textFailure = this.config.mode === "zai-coding-plan"
+        ? "Coding Plan text key or endpoint is missing"
+        : "Direct text provider key or endpoint is missing");
       throw error;
     }
     const safeMessages = (Array.isArray(messages) ? messages : []).slice(-80).map((message) => {
       const role = ["system", "user", "assistant", "tool"].includes(message?.role) ? message.role : "user";
       const result = {
         role,
-        content: safeMessageContent(message?.content ?? ""),
+        content: safeMessageContent(message?.content ?? "", this.config.mode !== "zai-coding-plan"),
         ...(message?.name ? { name: visibleContent(String(message.name), 120) } : {}),
         ...(message?.tool_call_id ? { tool_call_id: visibleContent(String(message.tool_call_id), 120) } : {}),
       };
@@ -225,12 +232,18 @@ export class OpenAICompatibleProvider {
       );
     } catch (error) {
       if (error?.name === "TimeoutError" || error?.name === "AbortError") error.retryable = true;
+      this.status && (this.status.textFailure = this.config.mode === "zai-coding-plan"
+        ? "Coding Plan text request failed"
+        : "Direct text provider request failed");
       throw error;
     }
     if (!response.ok) {
       const error = Error(`Keeper model provider HTTP ${response.status}`);
       error.retryable = response.status === 408 || response.status === 409 || response.status === 429 || response.status >= 500;
       error.quota = response.status === 429;
+      this.status && (this.status.textFailure = this.config.mode === "zai-coding-plan"
+        ? "Coding Plan text request failed"
+        : "Direct text provider request failed");
       await response.body?.cancel().catch(() => {});
       throw error;
     }
@@ -242,6 +255,7 @@ export class OpenAICompatibleProvider {
     }
     const content = responseText(payload);
     if (!content && !responseToolCalls(payload).length) throw Error("Keeper model provider returned no text");
+    this.status && (this.status.textFailure = null);
     return {
       text: visibleContent(content, 32_000),
       toolCalls: responseToolCalls(payload),

@@ -267,11 +267,10 @@ export class KeeperHarness {
       ...(images.length ? [{
         role: "user",
         content: [
-          { type: "text", text: "Current owner-authorized preview references (visual input for the preceding inspection):" },
-          ...images.slice(0, 4).map((image) => ({
-            type: "image_url",
-            image_url: { url: image.url },
-          })),
+          { type: "text", text: "Current owner-authorized visual result for the preceding inspection:" },
+          ...images.slice(0, 4).flatMap((image) => image.url
+            ? [{ type: "image_url", image_url: { url: image.url } }]
+            : image.text ? [{ type: "text", text: visibleContent(image.text, 16_000) }] : []),
         ],
       }] : []),
     ];
@@ -418,7 +417,8 @@ export class KeeperHarness {
               try {
                 const hydrated = await this.imageHydrator(owner, refs, controller.signal);
                 state.images = (Array.isArray(hydrated) ? hydrated : []).filter((image) =>
-                  image && typeof image.url === "string" && /^data:image\/[a-z0-9.+-]+;base64,/i.test(image.url),
+                  image && ((typeof image.url === "string" && /^data:image\/[a-z0-9.+-]+;base64,/i.test(image.url)) ||
+                    (typeof image.text === "string" && image.text.length > 0)),
                 ).slice(0, 4);
                 await appendEvent(this.sql, run.owner, run.id, "tool.images_hydrated", {
                   refs: refs.map((ref) => ({ assetId: ref.assetId, kind: ref.kind })), count: state.images.length,

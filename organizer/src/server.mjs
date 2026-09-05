@@ -3,7 +3,9 @@ import { timingSafeEqual, randomUUID } from "node:crypto";
 import { connect, secretBox, claimRun, completeRun, scheduleCatchup } from "./store.mjs";
 import { DEFAULTS, unchanged, validDay } from "./policy.mjs";
 import { Engine } from "./engine.mjs";
+import { loadConfig } from "./config.mjs";
 import { createProvider } from "./keeper/provider.mjs";
+import { createVisionMcpProvider } from "./keeper/mcp.mjs";
 import { KeeperHarness, recoverKeeperLeases } from "./keeper/harness.mjs";
 import { ToolRegistry } from "./keeper/registry.mjs";
 import {
@@ -23,14 +25,17 @@ import { getSchedule, KeeperScheduler, setSchedule } from "./keeper/scheduler.mj
 const secret = process.env.ORGANIZER_SECRET;
 const box = secretBox(secret);
 const sql = await connect(process.env.ORGANIZER_DATABASE_URL);
+const aiConfig = loadConfig(process.env);
 const engine = new Engine(sql, box, {
   immich: process.env.IMMICH_URL || "http://immich-server:2283",
-  timeZone: process.env.TZ || "UTC",
-  vision: {
-    base: process.env.VISION_BASE_URL || "https://api.z.ai/api/paas/v4",
-    model: process.env.VISION_MODEL || "glm-5v-turbo",
-    key: process.env.VISION_API_KEY,
-  },
+  timeZone: aiConfig.timeZone,
+  aiProvider: aiConfig.mode,
+  vision: aiConfig.vision,
+  keeper: aiConfig.keeper,
+  visionMcpProvider: aiConfig.mode === "zai-coding-plan"
+    ? createVisionMcpProvider({ ...aiConfig.visionMcp, status: aiConfig.providerState })
+    : null,
+  providerState: aiConfig.providerState,
 });
 // Keeper receives an explicit registry.  The optional tools module is loaded
 // only when present so the backend remains useful for chat/scheduling while a
@@ -54,7 +59,7 @@ try {
 const keeper = new KeeperHarness({
   sql,
   registry: keeperRegistry,
-  provider: (owner) => createProvider({ sql, owner, config: engine.config.vision, timeZone: engine.config.timeZone }),
+  provider: (owner) => createProvider({ sql, owner, config: engine.config.keeper, timeZone: engine.config.timeZone, status: engine.config.providerState }),
   ownerResolver: (id) => engine.owner(id),
   imageHydrator: async (owner, refs, signal) => {
     const images = [];
@@ -64,8 +69,20 @@ const keeper = new KeeperHarness({
       if (seen.has(ref.assetId)) continue;
       seen.add(ref.assetId);
       const asset = await engine.asset(owner, ref.assetId);
-      const [image] = await engine.images(owner, asset);
-      if (image?.url) images.push({ assetId: ref.assetId, url: image.url });
+      if (engine.config.aiProvider === "zai-coding-plan") {
+        const visual = await engine.visionMcpCall(owner, asset, {
+          filename: asset.originalFileName,
+          currentMetadata: asset.exifInfo,
+          source: {},
+          manualFacts: {},
+          neighbors: [],
+          knownPeople: [],
+        });
+        images.push({ assetId: ref.assetId, text: JSON.stringify(visual) });
+      } else {
+        const [image] = await engine.images(owner, asset);
+        if (image?.url) images.push({ assetId: ref.assetId, url: image.url });
+      }
     }
     return images.slice(0, 4);
   },
@@ -231,10 +248,7 @@ async function handle(req) {
         counts,
         usage,
         runs: await sql`SELECT id,status,count,error,created_at FROM runs WHERE owner=${owner} ORDER BY created_at DESC LIMIT 10`,
-        provider: {
-          model: engine.config.vision.model,
-          configured: !!engine.config.vision.key,
-        },
+        provider: aiConfig.status(),
       },
     ];
   }

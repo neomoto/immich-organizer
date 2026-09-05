@@ -14,13 +14,15 @@ and a separate PostgreSQL database. There is no additional user-facing port or l
   and an atomic daily request limit (5,000 by default).
 - An embedded Keeper with persistent sessions, visible tool activity, resumable
   background runs, and optional daily housekeeping at 03:00 in the NAS timezone.
+- A shared-admin Z.AI Coding Plan mode. Keeper text uses `glm-5.3` at the Coding
+  Plan endpoint; vision uses the bundled `@z_ai/mcp-server` 0.1.5 over stdio.
 - Pilot mode does not apply metadata changes or discover the whole archive automatically.
 
 The code requires live validation with the configured vision endpoint and a separate
 Immich deployment before use on an irreplaceable archive. A passing filesystem check
 does not replace a backup. Back up both Immich and the organizer database before upgrades.
 
-This prerelease is `0.1.0-alpha.1`. Live GLM quality, production rollout, and physical
+This prerelease is `0.1.0-alpha.2`. Live GLM quality, production rollout, and physical
 mobile compatibility checks remain incomplete. Local synthetic tests do not measure model quality.
 
 Neighbor reasoning requires source groups from a manifest. Event identifiers include the
@@ -44,26 +46,60 @@ Video timestamps are approximate. Web corroboration currently uses Wikipedia onl
 3. Copy `.env.example` into the private deployment environment. Generate independent
    random values for `ORGANIZER_SECRET` and `ORGANIZER_DB_PASSWORD`.
    Use at least 32 characters for the organizer secret. Passwords in the database URL must be URL-safe.
-4. Configure `VISION_BASE_URL`, `VISION_MODEL`, and `VISION_API_KEY` for the provider
-   access you actually have. General API and subscription endpoints may differ.
-   The worker does not change endpoints or silently fall back to another billing mode.
-5. Merge and inspect the configuration:
+4. Recommended: use shared-admin Z.AI Coding Plan BYOK. Set
+   `AI_PROVIDER=zai-coding-plan` and set `Z_AI_API_KEY` once in the private worker
+   environment. Keeper text defaults to `KEEPER_BASE_URL=https://api.z.ai/api/coding/paas/v4`
+   and `KEEPER_MODEL=glm-5.3`. The bundled `zai-mcp-server` binary handles bounded
+   vision calls; it is installed in the worker image and never downloaded at runtime.
+   Family accounts do not set, view, or receive this administrator-owned key.
+5. Direct standard-API mode remains available for a metered balance. Set
+   `AI_PROVIDER=direct`, `VISION_BASE_URL=https://api.z.ai/api/paas/v4`,
+   `VISION_MODEL=glm-5v-turbo`, and `VISION_API_KEY`. Keep this endpoint separate
+   from `KEEPER_BASE_URL`: the Coding Plan text endpoint rejects image message content.
+   `VISION_API_KEY` is accepted only as a backwards-compatible key alias for Coding
+   Plan mode when `Z_AI_API_KEY` is absent.
+6. Merge and inspect the configuration:
 
    ```sh
    docker compose --env-file /private/path/deployment.env \
      -f /path/to/immich/docker-compose.yml -f organizer/compose.yaml config --quiet
    ```
 
-6. Start that deployment, log into Immich, and open **Organize → Connect Organize**.
+7. Start that deployment, log into Immich, and open **Organize → Connect Organize**.
    The server provisions a restricted worker API key for that account. No key is
    returned to the browser. The key can be revoked from Immich's API Keys settings.
-7. Run **Analyze pilot · 200**. Check reliable controls and uncertain source dates.
+8. Run **Analyze pilot · 200**. Check reliable controls and uncertain source dates.
    The pilot disables automatic changes and continuous discovery.
-8. After evaluating results and undo, enable automatic changes and analyze the library.
+9. After evaluating results and undo, enable automatic changes and analyze the library.
 
-The worker processes previews through your external vision provider. OCR, captions,
-and public landmark clues may be included in subsequent analysis. It excludes locked
-and trashed assets. Public album permissions are never changed.
+The worker processes previews through the configured provider. In Coding Plan mode,
+the private worker writes a bounded `0600` temporary file and sends it only to the
+local MCP child; the file is removed after each call. In direct mode, bounded image
+content is sent to the configured standard endpoint. OCR, captions, and public
+landmark clues may be included in subsequent analysis. It excludes locked and trashed
+assets. Public album permissions are never changed.
+
+The application does not read macOS Keychain, browser cookies, or another password
+store. To use an administrator-owned key, retrieve it through your approved private
+secret-management process, place it in a deployment-only environment file or secret,
+set `Z_AI_API_KEY` for the worker, and protect that file. Do not paste the key into
+chat, commit it, put it in a browser setting, or configure it per user. Status reports
+only the selected mode, endpoint label, model label, and non-secret failure state.
+Missing-key status, Coding Plan text failures, and Vision MCP failures are reported
+separately; provider response bodies and credentials are not returned.
+
+## Provider smoke validation
+
+The alpha2 validation used a privately configured Z.AI Coding Plan key without storing
+or printing it. The Coding Plan `glm-5.3` text request returned HTTP 200. The same
+endpoint correctly rejected direct image message content, while the general standard
+vision endpoint was unavailable without balance. The official bundled Vision MCP
+`analyze_image` call succeeded, and the project's `ZaiVisionMcpProvider` returned a
+schema-valid observation for a public synthetic Immich logo with all expected top-level
+fields. Its bounded temporary media directory was removed after the call.
+
+This is a synthetic-logo provider smoke only. It does not validate private-photo quality,
+the authorized 200-asset pilot, or a production deployment.
 
 Keeper is intentionally a small extensible harness, not a general-purpose shell agent.
 Only code-registered photo tools can run. Keeper sends bounded owner-authorized previews
