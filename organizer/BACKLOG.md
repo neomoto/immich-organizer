@@ -30,8 +30,8 @@ must be published on the owner's GitHub.
   GPS, managed memberships, lost-ack undo recovery, pause, and access restrictions.
 - [x] Organizer UI: 12 component tests, TypeScript, Svelte, targeted lint, and production
   build passed before adding the Keeper UI.
-- [ ] Revalidate the CURRENT working tree. It contains later uncommitted changes;
-  previous passing results do not certify those changes.
+- [x] Revalidate the combined implementation locally. Published source is on branch
+  `organizer`; final hosted CI and release checks remain tracked below.
 
 Latest integration checkpoint: current worker tests passed 52 cases (runtime excluded),
 UI passed 15 component tests plus TypeScript/Svelte/build, native metadata unit tests
@@ -50,20 +50,20 @@ Coordinate API/schema changes with the relevant owner before changing a shared c
 Owned files: `organizer/src/{engine,policy,vision,manifest}.mjs`,
 `organizer/test/policy.test.mjs`, and new `organizer/test/analysis-*.test.mjs` files.
 
-- [ ] A1: Audit and complete original-metadata/source-context extraction. Source manifests
+- [x] A1: Audit and complete original-metadata/source-context extraction. Source manifests
   must retain Unicode paths, original EXIF, checksums, and duplicate source matches.
   Unsupported files must not abort a complete scan. Model output is never an original anchor.
-- [ ] A2: Implement bounded multi-image event reasoning using relevant neighboring photos
+- [x] A2: Implement bounded multi-image event reasoning using relevant neighboring photos
   and independent anchors, not only unrelated folder metadata. Distinguish capture from
   depicted dates/places; do not propagate a guess as independent evidence.
-- [ ] A3: Improve stable event grouping and date recovery. Split mixed-date folders;
+- [x] A3: Improve stable event grouping and date recovery. Split mixed-date folders;
   preserve trustworthy EXIF/manual values. Month/year estimates stay imprecise.
-- [ ] A4: Complete geolocation evidence, bounded detail crops where useful, video-frame
+- [x] A4: Complete geolocation evidence, bounded detail crops where useful, video-frame
   timestamps, and deterministic schema validation. Record web citations and precision.
-- [ ] A5: Audit automatic writes and durable retries against backend contracts. Verify
+- [x] A5: Audit automatic writes and durable retries against backend contracts. Verify
   tags/albums are idempotent, delayed previews retry, storage failures pause application,
   budget is enforced, and concurrent edits cannot be overwritten by stale results.
-- [ ] A6: Add meaningful synthetic tests for conflicting anchors, scans, screenshots,
+- [x] A6: Add meaningful synthetic tests for conflicting anchors, scans, screenshots,
   location precision, Unicode, prompt injection, bounded media processing, and retries.
 
 Acceptance: executable analysis behavior, tested inference limits, no fabricated precision,
@@ -75,18 +75,18 @@ Owned files: `organizer/src/{server,store}.mjs`, `organizer/test/database.test.m
 new `organizer/test/backend-*.test.mjs` files, and the organizer controller/service in
 `server/src/{controllers,services}/`, including registration edits if required.
 
-- [ ] B1: Review all current worker/API code and remove correctness/security gaps.
+- [x] B1: Review all current worker/API code and remove correctness/security gaps.
   Reuse Immich sessions, enforce owner isolation, reject public-share access, and avoid
   orphaned provisioned keys or secrets in browser responses/logs.
-- [ ] B2: Complete durable analysis runs, leases, revision checks, catch-up scheduling,
+- [x] B2: Complete durable analysis runs, leases, revision checks, catch-up scheduling,
   and bounded pilot behavior. A 200-item pilot must never expand automatically to the
   whole library. Pause must stop acquiring new work, including queued discovery runs.
-- [ ] B3: Complete resumable undo for metadata and managed memberships. Record undo intent
+- [x] B3: Complete resumable undo for metadata and managed memberships. Record undo intent
   before changing Immich; handle interrupted acknowledgments and newer manual edits.
   Restore absent GPS/description correctly and preserve sidecar/lock semantics.
-- [ ] B4: Validate facts, locks, settings, source-manifest inputs, pagination, and API
+- [x] B4: Validate facts, locks, settings, source-manifest inputs, pagination, and API
   methods. Provide useful errors and typed server boundary contracts where practical.
-- [ ] B5: Test actual database behavior: atomic daily quota, concurrent leases, ownership,
+- [x] B5: Test actual database behavior: atomic daily quota, concurrent leases, ownership,
   restart recovery, pilot boundaries, current-revision writes, and interrupted undo.
 
 Acceptance: current API compiles and lints, meaningful real-PostgreSQL tests pass, schema
@@ -98,15 +98,15 @@ Owned files: `web/src/lib/components/organizer/`, `web/src/routes/(user)/organiz
 organizer integration in `DetailPanel.svelte` and `UserSidebar.svelte`, and related new
 UI tests. Coordinate worker/API additions through backend owner.
 
-- [ ] C1: Finish responsive Organize views, progress/usage/failures, pause/resume, and
+- [x] C1: Finish responsive Organize views, progress/usage/failures, pause/resume, and
   safe connection/settings flows using the existing Immich login.
-- [ ] C2: Finish asset details: evidence, date ranges, estimated map labels, OCR, model
+- [x] C2: Finish asset details: evidence, date ranges, estimated map labels, OCR, model
   attribution, manual facts, field locks, and correction/undo affordances.
-- [ ] C3: Support individual, selected, and album analysis. Search/filter rich metadata,
+- [x] C3: Support individual, selected, and album analysis. Search/filter rich metadata,
   paginate large libraries, and avoid stale request results or duplicate submissions.
-- [ ] C4: Surface durable run progress and interrupted undo; provide source-manifest upload.
+- [x] C4: Surface durable run progress and interrupted undo; provide source-manifest upload.
   Never show successful queuing when disconnected or an operation failed.
-- [ ] C5: Add component tests for key behavior and accessibility; run Svelte and TypeScript
+- [x] C5: Add component tests for key behavior and accessibility; run Svelte and TypeScript
   checks and build. Do not call a screenshot or manual visual test complete if not performed.
 
 Acceptance: native-feeling web integration, no separate dashboard/login, explicit uncertainty,
@@ -114,15 +114,15 @@ useful empty/error states, and passing relevant UI checks.
 
 ### D — Integration, packaging, and publication (lead coordinates; assign code to agent)
 
-- [ ] D1: Integrate agent changes and run worker tests, backend checks/lint, web checks/build,
+- [x] D1: Integrate agent changes and run worker tests, backend checks/lint, web checks/build,
   and the isolated Immich runtime test on the final commit.
-- [ ] D2: Review Docker/Compose and CI. Server release image overlays compiled JS/web
+- [x] D2: Review Docker/Compose and CI. Server release image overlays compiled JS/web
   artifacts onto the pinned upstream runtime; dependencies must stay compatible.
 - [ ] D3: Add runtime test coverage to CI and verify final hosted results. Publish only
   synthetic fixtures and generic configuration. Inspect the staged diff for secrets.
 - [ ] D4: Publish matching server/worker prerelease images and a GitHub prerelease with
   exact validation and remaining limitations. Verify artifacts exist and are pullable.
-- [ ] D5: Update project setup and operational docs with final architecture, API, configuration,
+- [x] D5: Update project setup and operational docs with final architecture, API, configuration,
   backup/restore, upgrade, and undo instructions. Keep implementation limits explicit.
 
 ### E — Live model pilot and rollout (external input pending)

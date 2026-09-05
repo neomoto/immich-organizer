@@ -92,4 +92,3 @@ export class ToolRegistry {
 export function createToolRegistry(definitions) {
   return new ToolRegistry(definitions);
 }
-
