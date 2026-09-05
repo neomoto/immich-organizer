@@ -1,5 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
+  import AnalysisPanel from '$lib/components/organizer/AnalysisPanel.svelte';
   import DetailPanelDate from '$lib/components/asset-viewer/DetailPanelDate.svelte';
   import DetailPanelDescription from '$lib/components/asset-viewer/DetailPanelDescription.svelte';
   import DetailPanelLocation from '$lib/components/asset-viewer/DetailPanelLocation.svelte';
@@ -151,6 +152,7 @@
     {/if}
 
     <DetailPanelDescription {asset} {isOwner} />
+    {#if isOwner}<AnalysisPanel assetId={asset.id} />{/if}
     <DetailPanelRating {asset} {isOwner} />
     <DetailPanelPeople {asset} {isOwner} {previousRoute} />
 

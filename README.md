@@ -1,3 +1,16 @@
+# Immich Organize
+
+An experimental fork adding an integrated Organize page, GLM vision analysis,
+evidence-based metadata, visual geolocation, event albums, and reversible changes.
+
+**Start here: [Organizer setup and development](organizer/README.md).**
+
+The analysis worker is independent of the interface. The small server/web integration
+uses Immich login and the existing photo viewer. This fork is based on Immich v3.1.0.
+It is not an official Immich release. Use a separate test deployment for the pilot.
+
+The original upstream project documentation follows.
+
 <p align="center"> 
   <br/>
   <a href="https://opensource.org/license/agpl-v3"><img src="https://img.shields.io/badge/License-AGPL_v3-blue.svg?color=3F51B5&style=for-the-badge&label=License&logoColor=000000&labelColor=ececec" alt="License: AGPLv3"></a>

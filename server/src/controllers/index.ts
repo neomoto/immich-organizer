@@ -19,6 +19,7 @@ import { MemoryController } from 'src/controllers/memory.controller';
 import { NotificationAdminController } from 'src/controllers/notification-admin.controller';
 import { NotificationController } from 'src/controllers/notification.controller';
 import { OAuthController } from 'src/controllers/oauth.controller';
+import { OrganizerController } from 'src/controllers/organizer.controller';
 import { PartnerController } from 'src/controllers/partner.controller';
 import { PersonController } from 'src/controllers/person.controller';
 import { PluginController } from 'src/controllers/plugin.controller';
@@ -41,6 +42,7 @@ import { ViewController } from 'src/controllers/view.controller';
 import { WorkflowController } from 'src/controllers/workflow.controller';
 
 export const controllers = [
+  OrganizerController,
   ApiKeyController,
   ActivityController,
   AlbumController,

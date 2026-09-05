@@ -39,6 +39,7 @@
 
 <Sidebar ariaLabel={$t('primary')}>
   <NavbarItem title={$t('photos')} href={Route.photos()} icon={mdiImageMultipleOutline} activeIcon={mdiImageMultiple} />
+  <NavbarItem title="Organize" href="/organize" icon={mdiToolboxOutline} activeIcon={mdiToolbox} />
 
   {#if featureFlagsManager.value.search}
     <NavbarItem title={$t('explore')} href={Route.explore()} icon={mdiMagnify} />

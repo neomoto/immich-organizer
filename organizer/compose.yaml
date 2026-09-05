@@ -1,0 +1,45 @@
+# Merge with Immich's release Compose file. Keep .env private.
+services:
+  immich-server:
+    image: ghcr.io/neomoto/immich-organizer-server:${ORGANIZER_VERSION:-0.1.0}
+    environment:
+      ORGANIZER_URL: http://organizer:8091
+      ORGANIZER_SECRET: ${ORGANIZER_SECRET:?Set a random 32-character or longer secret}
+  organizer:
+    image: ghcr.io/neomoto/immich-organizer-worker:${ORGANIZER_VERSION:-0.1.0}
+    restart: unless-stopped
+    environment:
+      ORGANIZER_DATABASE_URL: postgres://organizer:${ORGANIZER_DB_PASSWORD:?Set database password}@organizer-db:5432/organizer
+      ORGANIZER_SECRET: ${ORGANIZER_SECRET:?Set organizer secret}
+      IMMICH_URL: http://immich-server:2283
+      VISION_BASE_URL: ${VISION_BASE_URL:-https://api.z.ai/api/paas/v4}
+      VISION_MODEL: ${VISION_MODEL:-glm-5v-turbo}
+      VISION_API_KEY: ${VISION_API_KEY:-}
+      TZ: ${TZ:-UTC}
+    depends_on:
+      organizer-db:
+        condition: service_healthy
+    security_opt: [no-new-privileges:true]
+    cap_drop: [ALL]
+    mem_limit: 1536m
+    cpus: 1.5
+    read_only: true
+    tmpfs: [/tmp:size=512m, mode=1777]
+    logging:
+      driver: json-file
+      options: { max-size: 10m, max-file: '3' }
+  organizer-db:
+    image: postgres:16-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: organizer
+      POSTGRES_PASSWORD: ${ORGANIZER_DB_PASSWORD:?Set database password}
+      POSTGRES_DB: organizer
+    volumes: [organizer-database:/var/lib/postgresql/data]
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U organizer -d organizer']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+volumes:
+  organizer-database:

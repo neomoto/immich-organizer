@@ -23,6 +23,7 @@ import { MetadataService } from 'src/services/metadata.service';
 import { NotificationAdminService } from 'src/services/notification-admin.service';
 import { NotificationService } from 'src/services/notification.service';
 import { OcrService } from 'src/services/ocr.service';
+import { OrganizerService } from 'src/services/organizer.service';
 import { PartnerService } from 'src/services/partner.service';
 import { PersonService } from 'src/services/person.service';
 import { PluginService } from 'src/services/plugin.service';
@@ -51,6 +52,7 @@ import { WorkflowExecutionService } from 'src/services/workflow-execution.servic
 import { WorkflowService } from 'src/services/workflow.service';
 
 export const services = [
+  OrganizerService,
   ApiKeyService,
   ActivityService,
   AlbumService,
