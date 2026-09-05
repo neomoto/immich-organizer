@@ -11,6 +11,9 @@ env:
 jobs:
   checks:
     name: Docs Deploy Checks
+    # Docs deployment is an upstream-only operation. This also prevents a
+    # workflow_run from a fork release from using deployment credentials.
+    if: ${{ github.repository == 'immich-app/immich' }}
     runs-on: ubuntu-latest
     permissions:
       actions: read
@@ -125,7 +128,7 @@ jobs:
       contents: read
       actions: read
       pull-requests: write
-    if: ${{ fromJson(needs.checks.outputs.artifact).found && fromJson(needs.checks.outputs.parameters).shouldDeploy }}
+    if: ${{ github.repository == 'immich-app/immich' && fromJson(needs.checks.outputs.artifact).found && fromJson(needs.checks.outputs.parameters).shouldDeploy }}
     steps:
       - id: token
         uses: immich-app/devtools/actions/create-workflow-token@1af396ae134e4bc3b63d947e672bc68bf4ff9dc5 # create-workflow-token-action-v3.0.0

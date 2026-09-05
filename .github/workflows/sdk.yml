@@ -9,6 +9,7 @@ permissions: {}
 jobs:
   publish:
     name: Publish `@immich/sdk`
+    if: ${{ github.repository == 'immich-app/immich' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read

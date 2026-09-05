@@ -21,6 +21,8 @@ permissions: {}
 jobs:
   publish:
     name: CLI Publish
+    # Releases from the organizer fork must not attempt upstream npm/OIDC publication.
+    if: ${{ github.event_name != 'release' || github.repository == 'immich-app/immich' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -56,6 +58,8 @@ jobs:
 
   docker:
     name: Docker
+    # Keep fork builds for push/PR events, but never publish a fork release image.
+    if: ${{ github.event_name != 'release' || github.repository == 'immich-app/immich' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
