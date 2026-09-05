@@ -58,10 +58,16 @@ export function validateObservation(o) {
     if (
       !e ||
       typeof e.id !== "string" ||
-      typeof e.text !== "string" ||
+      e.id.length > 100 || typeof e.text !== "string" || e.text.length > 4000 ||
       !["visual", "text", "metadata", "context", "web"].includes(e.kind)
     )
       throw Error("Invalid evidence item");
+  }
+  if (new Set(o.evidence.map(e => e.id)).size !== o.evidence.length)
+    throw Error("Duplicate evidence IDs");
+  for (const e of o.evidence) {
+    if (e.kind === "web" && (typeof e.url !== "string" || !/^https:\/\//.test(e.url)))
+      throw Error("Web evidence requires a citation URL");
   }
   for (const field of ["date", "location"]) {
     const v = o[field];
@@ -85,6 +91,12 @@ export function validateObservation(o) {
       throw Error("Invalid date range");
     if (o.date.precision === "day" && o.date.start !== o.date.end)
       throw Error("Day range mismatch");
+    if (o.date.precision === "month") {
+      const end = new Date(Date.UTC(Number(o.date.start.slice(0,4)), Number(o.date.start.slice(5,7)), 0)).toISOString().slice(0,10);
+      if (!o.date.start.endsWith("-01") || o.date.end !== end) throw Error("Month range mismatch");
+    }
+    if (o.date.precision === "year" && (!o.date.start.endsWith("-01-01") || o.date.end !== o.date.start.slice(0,4) + "-12-31"))
+      throw Error("Year range mismatch");
     if (!["capture", "depicted", "unknown"].includes(o.date.kind))
       throw Error("Invalid date meaning");
   }
@@ -128,6 +140,7 @@ export function propose(
   const suspectDate =
     !currentDay ||
     /^000[01]-|^1970-01-01/.test(currentDay) ||
+    (original.verified === true && validDay(originalDay) && importDay === currentDay && originalDay !== currentDay && !exif.dateTimeOriginal) ||
     (!original.captureDate &&
       original.verified === true &&
       importDay === currentDay &&
@@ -136,9 +149,11 @@ export function propose(
   // A literal date in a picture can describe the subject, rather than its capture.
   // Context/model confidence never suffices to assign an exact day on its own.
   const groundedDay =
-    facts.captureDay || (validDay(originalDay) ? originalDay : null);
+    facts.captureDay || (original.verified === true && validDay(originalDay) ? originalDay : null);
+  const captureMedia = ["photo", "video"].includes(observation.category);
   if (
     !locks.date &&
+    captureMedia &&
     suspectDate &&
     d?.kind === "capture" &&
     d.precision === "day" &&
@@ -147,14 +162,23 @@ export function propose(
   ) {
     patch.dateTimeOriginal = `${d.start}T12:00:00.000Z`;
   }
-  const l = observation.location;
+  const inferredLocation = observation.location;
+  const originalGPS = original.originalExif || {};
+  const cameraAnchored = original.verified === true &&
+    Number.isFinite(originalGPS.GPSLatitude) && Number.isFinite(originalGPS.GPSLongitude) &&
+    Math.abs(originalGPS.GPSLatitude - inferredLocation?.latitude) < 0.00001 &&
+    Math.abs(originalGPS.GPSLongitude - inferredLocation?.longitude) < 0.00001;
+  // A model's coordinate decimals do not establish exact camera precision.
+  const l = inferredLocation?.precision === "camera" && !cameraAnchored
+    ? { ...inferredLocation, precision: "venue" } : inferredLocation;
   const missingGPS = exif.latitude == null || exif.longitude == null;
   if (
     !locks.location &&
+    captureMedia &&
     settings.geolocation &&
     l?.kind === "capture" &&
     l.confidence !== "low" &&
-    (missingGPS || facts.suspectLocation === true) &&
+    (missingGPS || (facts.suspectLocation === true && original.verified === true && original.originalExif?.GPSLatitude == null)) &&
     (settings.approximatePins || l.precision === "camera")
   ) {
     patch.latitude = l.latitude;
@@ -165,6 +189,7 @@ export function propose(
     patch,
     estimatedDate: d,
     estimatedLocation: l,
+    locationApproximate: l ? l.precision !== "camera" : null,
     tags: [...new Set(observation.tags)]
       .slice(0, 15)
       .map((t) => `AI/${t.trim().slice(0, 100)}`)
@@ -178,13 +203,16 @@ export function patchBefore(asset, patch) {
   return Object.fromEntries(
     Object.keys(patch).map((k) => [
       k,
-      k === "dateTimeOriginal" ? e[k] || asset.fileCreatedAt : (e[k] ?? null),
+      e[k] ?? null,
     ]),
   );
 }
 export function unchanged(asset, expected) {
   return Object.entries(expected).every(
-    ([k, v]) => patchBefore(asset, { [k]: true })[k] === v,
+    ([k, v]) => {
+      const current = patchBefore(asset, { [k]: true })[k];
+      return current === v || (k === "dateTimeOriginal" && current != null && v != null && Number.isFinite(Date.parse(current)) && Date.parse(current) === Date.parse(v));
+    },
   );
 }
 export function eventKey(owner, observation, provenance) {
@@ -192,32 +220,45 @@ export function eventKey(owner, observation, provenance) {
   const d = observation.date;
   if (!d || d.confidence === "low") return null;
   // Preserve separate source groups; a label like "birthday" is not a global event ID.
+  const sourceDay = provenance.verified && validDay(String(provenance.captureDate || "").slice(0,10)) ? provenance.captureDate.slice(0,10) : null;
+  if (!provenance.group) return null;
+  const normalize = value => String(value || "").normalize("NFKC").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+  const location = observation.location?.kind === "capture" && observation.location.confidence !== "low"
+    ? observation.location : null;
+  // Scene and place must agree as well as date. Conservatively split distinct
+  // labels instead of merging unrelated same-day scenes in an archive folder.
+  const scene = normalize(observation.event);
+  const place = location ? [normalize(location.name), location.precision,
+    Number(location.latitude.toFixed(2)), Number(location.longitude.toFixed(2))] : null;
   return digest([
     owner,
     provenance.group || "",
-    observation.event.toLowerCase(),
-    d.start,
-    d.end,
-    observation.location?.name || "",
+    sourceDay || d.start,
+    sourceDay || d.end,
+    scene,
+    place,
   ]);
 }
 
 export function corroboratedDay(provenance, neighbors, inference) {
   if (inference?.kind !== "capture" || inference.precision !== "day")
     return null;
-  const matches = neighbors.filter(
+  const candidates = neighbors.filter(
     (p) =>
       p.verified &&
-      p.captureDate?.slice(0, 10) === inference.start &&
+      validDay(p.captureDate?.slice(0, 10)) &&
       p.group === provenance.group &&
       p.camera &&
       p.camera === provenance.camera,
   );
   const name = provenance.filename;
+  const before = candidates.filter(p => p.filename < name).sort((a,b) => b.filename.localeCompare(a.filename))[0];
+  const after = candidates.filter(p => p.filename > name).sort((a,b) => a.filename.localeCompare(b.filename))[0];
   if (
     !name ||
-    !matches.some((p) => p.filename < name) ||
-    !matches.some((p) => p.filename > name)
+    !before || !after || before.captureDate.slice(0,10) !== inference.start ||
+    after.captureDate.slice(0,10) !== inference.start ||
+    (before.checksum && before.checksum === after.checksum)
   )
     return null;
   return inference.start;

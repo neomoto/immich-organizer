@@ -1,12 +1,13 @@
 {
   "name": "immich-organizer-worker",
-  "version": "0.1.0",
+  "version": "0.1.0-alpha.1",
   "private": true,
   "type": "module",
   "license": "AGPL-3.0",
   "scripts": {
     "start": "node src/server.mjs",
     "test": "node --test test/*.test.mjs",
+    "test:keeper": "node --test test/backend-keeper*.test.mjs",
     "manifest": "node src/manifest.mjs"
   },
   "dependencies": {

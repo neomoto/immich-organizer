@@ -22,15 +22,47 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '22' }
       - run: npm ci --prefix organizer
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
       - run: npm test --prefix organizer
+        env:
+          TEST_DATABASE_URL: postgres://postgres:test@localhost:5432/organizer
+      - run: npm run test:keeper --prefix organizer
         env:
           TEST_DATABASE_URL: postgres://postgres:test@localhost:5432/organizer
       - run: npx --yes pnpm@11.13.1 install --frozen-lockfile --filter immich... --filter immich-web...
       - run: npx --yes pnpm@11.13.1 --filter @immich/sdk --filter @immich/plugin-sdk build
       - run: npx --yes pnpm@11.13.1 --filter immich check
+      - run: npx --yes pnpm@11.13.1 --filter immich exec eslint src/controllers/organizer.controller.ts src/services/organizer.service.ts src/repositories/asset.repository.ts src/repositories/metadata.repository.ts src/services/metadata.service.ts
+      - run: npx --yes pnpm@11.13.1 --filter immich test run src/services/metadata.service.spec.ts
+      - run: npx --yes pnpm@11.13.1 --filter immich exec vitest --config test/vitest.config.medium.mjs --run test/medium/specs/repositories/metadata.repository.spec.ts
       - run: npx --yes pnpm@11.13.1 --filter immich-web prepare
       - run: npx --yes pnpm@11.13.1 --filter immich-web check:typescript
       - run: npx --yes pnpm@11.13.1 --filter immich-web check:svelte
+      - run: npx --yes pnpm@11.13.1 --filter immich-web exec eslint src/lib/components/organizer 'src/routes/(user)/organize'
+      - run: npx --yes pnpm@11.13.1 --filter immich-web exec vitest run src/lib/components/organizer 'src/routes/(user)/organize'
+      - run: npx --yes pnpm@11.13.1 --filter immich build
+      - run: npx --yes pnpm@11.13.1 --filter immich-web build
+      - run: docker build -f organizer/Dockerfile -t immich-organizer-worker:test .
+      - run: docker build -f organizer/server.Dockerfile -t immich-organizer-server:test .
+      - run: docker compose -f organizer/compose.test.yaml up -d
+      - name: Wait for test Immich
+        run: |
+          for i in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:18283/api/server/ping; then exit 0; fi
+            sleep 2
+          done
+          docker compose -f organizer/compose.test.yaml logs --tail 100
+          exit 1
+      - run: RUNTIME_URL=http://127.0.0.1:18283 node --test organizer/test/runtime.test.mjs
+      - if: always()
+        run: docker compose -f organizer/compose.test.yaml down
+      - uses: actions/upload-artifact@v4
+        with:
+          name: organizer-application
+          include-hidden-files: true
+          path: |
+            server/dist
+            web/build
   images:
     needs: test
     if: startsWith(github.ref, 'refs/tags/organizer-v')
@@ -44,9 +76,12 @@ jobs:
           - name: worker
             file: organizer/Dockerfile
           - name: server
-            file: server/Dockerfile
+            file: organizer/server.Dockerfile
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: organizer-application
       - uses: docker/setup-buildx-action@v3
       - uses: docker/login-action@v3
         with:
@@ -60,4 +95,15 @@ jobs:
           context: .
           file: ${{ matrix.file }}
           push: true
+          load: true
+          build-args: |
+            SOURCE_COMMIT=${{ github.sha }}
+            VERSION=${{ steps.version.outputs.value }}
           tags: ghcr.io/neomoto/immich-organizer-${{ matrix.name }}:${{ steps.version.outputs.value }}
+      - name: Export installable image fallback
+        run: |
+          docker save ghcr.io/neomoto/immich-organizer-${{ matrix.name }}:${{ steps.version.outputs.value }} | gzip -1 > organizer-image-${{ matrix.name }}.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: organizer-image-${{ matrix.name }}
+          path: organizer-image-${{ matrix.name }}.tar.gz

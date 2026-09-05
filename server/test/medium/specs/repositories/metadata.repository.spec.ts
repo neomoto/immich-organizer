@@ -27,6 +27,30 @@ beforeAll(async () => {
 
 describe(MetadataRepository.name, () => {
   describe('writeTags', () => {
+    it('deletes null GPS and date values instead of retaining the old sidecar values', async () => {
+      const { sut } = setup();
+      const dir = mkdtempSync(join(tmpdir(), 'metadata-medium-write-tags'));
+      const sidecarFile = join(dir, 'sidecar.xmp');
+
+      await sut.writeTags(sidecarFile, {
+        DateTimeOriginal: newDate().toISOString(),
+        GPSLatitude: 48.8566,
+        GPSLongitude: 2.3522,
+      });
+      await sut.writeTags(sidecarFile, {
+        DateTimeOriginal: null,
+        GPSLatitude: null,
+        GPSLongitude: null,
+      });
+
+      const tags = await sut.readTags(sidecarFile);
+      expect(tags.GPSLatitude).toBeUndefined();
+      expect(tags.GPSLongitude).toBeUndefined();
+      expect(tags.DateTimeOriginal).toBeUndefined();
+      expect(readFileSync(sidecarFile).toString()).not.toContain('GPSLatitude');
+      expect(readFileSync(sidecarFile).toString()).not.toContain('GPSLongitude');
+    });
+
     it('should write an empty description', async () => {
       const { sut } = setup();
       const dir = mkdtempSync(join(tmpdir(), 'metadata-medium-write-tags'));

@@ -1966,6 +1966,29 @@ describe(MetadataService.name, () => {
   });
 
   describe('handleSidecarWrite', () => {
+    it('should delete absent capture date and coordinates from the sidecar during undo', async () => {
+      const asset = AssetFactory.from()
+        .file({ type: AssetFileType.Sidecar })
+        .exif({
+          description: '',
+          dateTimeOriginal: null,
+          latitude: null,
+          longitude: null,
+        })
+        .build();
+      const locks = ['description', 'latitude', 'longitude', 'dateTimeOriginal'] as const;
+      mocks.assetJob.getLockedPropertiesForMetadataExtraction.mockResolvedValue([...locks]);
+      mocks.assetJob.getForSidecarWriteJob.mockResolvedValue(getForSidecarWrite(asset));
+      await expect(sut.handleSidecarWrite({ id: asset.id })).resolves.toBe(JobStatus.Success);
+      expect(mocks.metadata.writeTags).toHaveBeenCalledWith(asset.files[0].path, {
+        Description: '',
+        ImageDescription: '',
+        DateTimeOriginal: null,
+        GPSLatitude: null,
+        GPSLongitude: null,
+      });
+      expect(mocks.asset.unlockProperties).toHaveBeenCalledWith(asset.id, [...locks]);
+    });
     it('should skip assets that no longer exist', async () => {
       mocks.assetJob.getLockedPropertiesForMetadataExtraction.mockResolvedValue([]);
       mocks.assetJob.getForSidecarWriteJob.mockResolvedValue(void 0);

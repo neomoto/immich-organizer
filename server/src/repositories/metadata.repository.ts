@@ -11,6 +11,11 @@ interface ExifDuration {
 
 type StringOrNumber = string | number;
 
+type NullableWriteTag = 'DateTimeOriginal' | 'GPSLatitude' | 'GPSLongitude';
+type MetadataWriteTags = Omit<Partial<Tags>, NullableWriteTag> & {
+  [Key in NullableWriteTag]?: Tags[Key] | null;
+};
+
 type TagsWithWrongTypes =
   | 'FocalLength'
   | 'Duration'
@@ -119,11 +124,14 @@ export class MetadataRepository {
     return this.exiftool.extractBinaryTagToBuffer(tagName, path);
   }
 
-  async writeTags(path: string, tags: Partial<Tags>): Promise<void> {
-    // If exiftool assigns a field with ^= instead of =, empty values will be written too.
-    // Since exiftool-vendored doesn't support an option for this, we append the ^ to the name of the tag instead.
-    // https://exiftool.org/exiftool_pod.html#:~:text=is%20used%20to%20write%20an%20empty%20string
-    const tagsToWrite = Object.fromEntries(Object.entries(tags).map(([key, value]) => [`${key}^`, value]));
+  async writeTags(path: string, tags: MetadataWriteTags): Promise<void> {
+    // Keep the historical ^= behavior for empty text/list values, but use a
+    // plain assignment for null. In ExifTool, ^= is an additive assignment;
+    // GPSLatitude^=undef leaves a previous coordinate in place instead of
+    // deleting it. Undo relies on null deleting absent GPS/date fields.
+    const tagsToWrite = Object.fromEntries(
+      Object.entries(tags).map(([key, value]) => [value === null ? key : `${key}^`, value]),
+    );
     try {
       await this.exiftool.write(path, tagsToWrite);
     } catch (error) {

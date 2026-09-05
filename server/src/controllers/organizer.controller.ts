@@ -15,6 +15,12 @@ class OrganizerBody extends createZodDto(z.record(z.string(), z.unknown())) {}
 export class OrganizerController {
   constructor(private service: OrganizerService) {}
 
+  @Put('metadata/:id')
+  @Authenticated({ permission: Permission.AssetUpdate })
+  metadata(@Auth() auth: AuthDto, @Param() { id }: UUIDParamDto, @Body() body: OrganizerBody) {
+    return this.service.metadata(auth, id, body as Parameters<OrganizerService['metadata']>[2]);
+  }
+
   @Get('storage/:id')
   @Authenticated({ permission: Permission.AssetRead })
   storage(@Auth() auth: AuthDto, @Param() { id }: UUIDParamDto) {
@@ -57,12 +63,15 @@ export class OrganizerController {
 
   @Get('assets')
   @Authenticated()
-  assets(@Auth() auth: AuthDto, @Query('q') q = '', @Query('offset') offset = '0') {
+  assets(@Auth() auth: AuthDto, @Query() query: Record<string, string>) {
     this.service.session(auth);
-    return this.service.forward(
-      auth.user.id,
-      `/assets?q=${encodeURIComponent(q)}&offset=${encodeURIComponent(offset)}`,
-    );
+    const params = new URLSearchParams();
+    for (const key of ['q', 'offset', 'status', 'category', 'datePrecision', 'locationPrecision']) {
+      if (typeof query[key] === 'string') {
+        params.set(key, query[key]);
+      }
+    }
+    return this.service.forward(auth.user.id, `/assets?${params}`);
   }
 
   @Get('assets/:id')
@@ -88,14 +97,122 @@ export class OrganizerController {
 
   @Get('history')
   @Authenticated()
-  history(@Auth() auth: AuthDto) {
+  history(@Auth() auth: AuthDto, @Query('offset') offset = '0') {
     this.service.session(auth);
-    return this.service.forward(auth.user.id, '/history');
+    return this.service.forward(auth.user.id, `/history?offset=${encodeURIComponent(offset)}`);
   }
 
   @Post('undo/:id')
   @Authenticated()
   undo(@Auth() auth: AuthDto, @Param() { id }: UUIDParamDto) {
     return this.service.undo(auth, id);
+  }
+
+  @Get('keeper/sessions')
+  @Authenticated()
+  keeperSessions(@Auth() auth: AuthDto, @Query() query: Record<string, string>) {
+    this.service.session(auth);
+    const params = new URLSearchParams();
+    for (const key of ['cursor', 'limit']) {
+      if (typeof query[key] === 'string') {
+        params.set(key, query[key]);
+      }
+    }
+    return this.service.forward(auth.user.id, `/keeper/sessions?${params}`);
+  }
+
+  @Post('keeper/sessions')
+  @Authenticated()
+  keeperCreateSession(@Auth() auth: AuthDto, @Body() body: OrganizerBody) {
+    this.service.session(auth);
+    return this.service.forward(auth.user.id, '/keeper/sessions', 'POST', body);
+  }
+
+  @Get('keeper/sessions/:id')
+  @Authenticated()
+  keeperSession(@Auth() auth: AuthDto, @Param() { id }: UUIDParamDto) {
+    this.service.session(auth);
+    return this.service.forward(auth.user.id, `/keeper/sessions/${id}`);
+  }
+
+  @Get('keeper/sessions/:id/messages')
+  @Authenticated()
+  keeperMessages(@Auth() auth: AuthDto, @Param() { id }: UUIDParamDto, @Query() query: Record<string, string>) {
+    this.service.session(auth);
+    const params = new URLSearchParams();
+    for (const key of ['cursor', 'limit']) {
+      if (typeof query[key] === 'string') {
+        params.set(key, query[key]);
+      }
+    }
+    return this.service.forward(auth.user.id, `/keeper/sessions/${id}/messages?${params}`);
+  }
+
+  @Post('keeper/sessions/:id/messages')
+  @Authenticated()
+  keeperEnqueueMessage(@Auth() auth: AuthDto, @Param() { id }: UUIDParamDto, @Body() body: OrganizerBody) {
+    this.service.session(auth);
+    return this.service.forward(auth.user.id, `/keeper/sessions/${id}/messages`, 'POST', body);
+  }
+
+  @Get('keeper/sessions/:id/runs')
+  @Authenticated()
+  keeperSessionRuns(@Auth() auth: AuthDto, @Param() { id }: UUIDParamDto, @Query() query: Record<string, string>) {
+    this.service.session(auth);
+    const params = new URLSearchParams();
+    for (const key of ['cursor', 'limit']) {
+      if (typeof query[key] === 'string') {
+        params.set(key, query[key]);
+      }
+    }
+    return this.service.forward(auth.user.id, `/keeper/sessions/${id}/runs?${params}`);
+  }
+
+  @Get('keeper/runs/:id')
+  @Authenticated()
+  keeperRun(@Auth() auth: AuthDto, @Param() { id }: UUIDParamDto) {
+    this.service.session(auth);
+    return this.service.forward(auth.user.id, `/keeper/runs/${id}`);
+  }
+
+  @Get('keeper/runs/:id/events')
+  @Authenticated()
+  keeperRunEvents(@Auth() auth: AuthDto, @Param() { id }: UUIDParamDto, @Query() query: Record<string, string>) {
+    this.service.session(auth);
+    const params = new URLSearchParams();
+    for (const key of ['cursor', 'limit']) {
+      if (typeof query[key] === 'string') {
+        params.set(key, query[key]);
+      }
+    }
+    return this.service.forward(auth.user.id, `/keeper/runs/${id}/events?${params}`);
+  }
+
+  @Post('keeper/runs/:id/stop')
+  @Authenticated()
+  keeperStop(@Auth() auth: AuthDto, @Param() { id }: UUIDParamDto) {
+    this.service.session(auth);
+    return this.service.forward(auth.user.id, `/keeper/runs/${id}/stop`, 'POST', {});
+  }
+
+  @Post('keeper/runs/:id/resume')
+  @Authenticated()
+  keeperResume(@Auth() auth: AuthDto, @Param() { id }: UUIDParamDto) {
+    this.service.session(auth);
+    return this.service.forward(auth.user.id, `/keeper/runs/${id}/resume`, 'POST', {});
+  }
+
+  @Get('keeper/schedule')
+  @Authenticated()
+  keeperSchedule(@Auth() auth: AuthDto) {
+    this.service.session(auth);
+    return this.service.forward(auth.user.id, '/keeper/schedule');
+  }
+
+  @Put('keeper/schedule')
+  @Authenticated()
+  keeperSetSchedule(@Auth() auth: AuthDto, @Body() body: OrganizerBody) {
+    this.service.session(auth);
+    return this.service.forward(auth.user.id, '/keeper/schedule', 'PUT', body);
   }
 }

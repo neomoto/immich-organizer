@@ -186,9 +186,10 @@ export class AssetRepository {
     ],
   })
   async upsertExif({ exif, audio, video, keyframes, lockedPropertiesBehavior }: UpsertExifOptions): Promise<void> {
-    let query = this.db;
-    if (audio) {
-      (query as any) = this.db.with('audio', (qb) =>
+    await this.withMetadataLock(exif.assetId, async (connection) => {
+      let query = connection;
+      if (audio) {
+        (query as any) = connection.with('audio', (qb) =>
         qb
           .insertInto('asset_audio')
           .values(audio)
@@ -200,11 +201,11 @@ export class AssetRepository {
               codecName: ref('asset_audio.codecName'),
             })),
           ),
-      );
-    }
+        );
+      }
 
-    if (video) {
-      (query as any) = query.with('video', (qb) =>
+      if (video) {
+        (query as any) = query.with('video', (qb) =>
         qb
           .insertInto('asset_video')
           .values(video)
@@ -227,11 +228,11 @@ export class AssetRepository {
               pixelFormat: ref('asset_video.pixelFormat'),
             })),
           ),
-      );
-    }
+        );
+      }
 
-    if (keyframes) {
-      (query as any) = query.with('keyframe', (qb) =>
+      if (keyframes) {
+        (query as any) = query.with('keyframe', (qb) =>
         qb
           .insertInto('asset_keyframe')
           .values(keyframes)
@@ -245,14 +246,14 @@ export class AssetRepository {
               outputFrames: ref('asset_keyframe.outputFrames'),
             })),
           ),
-      );
-    }
+        );
+      }
 
-    await query
-      .insertInto('asset_exif')
-      .values(exif)
-      .onConflict((oc) =>
-        oc.column('assetId').doUpdateSet((eb) => {
+      await query
+        .insertInto('asset_exif')
+        .values(exif)
+        .onConflict((oc) =>
+          oc.column('assetId').doUpdateSet((eb) => {
           const updateLocked = <T extends keyof AssetExifTable>(col: T) => eb.ref(`excluded.${col}`);
           const skipLocked = <T extends keyof AssetExifTable>(col: T) =>
             eb
@@ -302,9 +303,29 @@ export class AssetRepository {
               exif,
             ),
           };
-        }),
-      )
-      .execute();
+          }),
+        )
+        .execute();
+    });
+  }
+
+  /**
+   * Serialize EXIF updates and sidecar writes for one asset across all
+   * Immich processes. PostgreSQL advisory locks are held on a dedicated
+   * connection for the complete callback, including the filesystem write in
+   * MetadataService. This prevents an older queued SidecarWrite job from
+   * racing a newer undo and restoring stale GPS/date values.
+   */
+  async withMetadataLock<T>(assetId: string, callback: (connection: Kysely<DB>) => Promise<T>): Promise<T> {
+    return this.db.connection().execute(async (connection) => {
+      const key = `immich-organizer-metadata:${assetId}`;
+      await sql`SELECT pg_advisory_lock(hashtextextended(${key}, 0))`.execute(connection);
+      try {
+        return await callback(connection);
+      } finally {
+        await sql`SELECT pg_advisory_unlock(hashtextextended(${key}, 0))`.execute(connection);
+      }
+    });
   }
 
   @GenerateSql({ params: [[DummyValue.UUID], { model: DummyValue.STRING }] })
@@ -314,29 +335,40 @@ export class AssetRepository {
       return;
     }
 
-    await this.db
-      .updateTable('asset_exif')
-      .set((eb) => ({
-        ...options,
-        lockedProperties: distinctLocked(eb, Object.keys(options) as LockableProperty[]),
-      }))
-      .where('assetId', 'in', ids)
-      .execute();
+    await this.withMetadataLocks(ids, () =>
+      this.db
+        .updateTable('asset_exif')
+        .set((eb) => ({
+          ...options,
+          lockedProperties: distinctLocked(eb, Object.keys(options) as LockableProperty[]),
+        }))
+        .where('assetId', 'in', ids)
+        .execute(),
+    );
   }
 
   @GenerateSql({ params: [[DummyValue.UUID], DummyValue.NUMBER, DummyValue.STRING] })
   @Chunked()
   updateDateTimeOriginal(ids: string[], delta?: number, timeZone?: string) {
-    return this.db
-      .updateTable('asset_exif')
-      .set((eb) => ({
-        dateTimeOriginal: sql`"dateTimeOriginal" + ${(delta ?? 0) + ' minute'}::interval`,
-        timeZone,
-        lockedProperties: distinctLocked(eb, ['dateTimeOriginal', 'timeZone']),
-      }))
-      .where('assetId', 'in', ids)
-      .returning(['assetId', 'dateTimeOriginal', 'timeZone'])
-      .execute();
+    return this.withMetadataLocks(ids, () =>
+      this.db
+        .updateTable('asset_exif')
+        .set((eb) => ({
+          dateTimeOriginal: sql`"dateTimeOriginal" + ${(delta ?? 0) + ' minute'}::interval`,
+          timeZone,
+          lockedProperties: distinctLocked(eb, ['dateTimeOriginal', 'timeZone']),
+        }))
+        .where('assetId', 'in', ids)
+        .returning(['assetId', 'dateTimeOriginal', 'timeZone'])
+        .execute(),
+    );
+  }
+
+  private async withMetadataLocks<T>(assetIds: string[], callback: () => Promise<T>): Promise<T> {
+    const ids = [...new Set(assetIds)].sort();
+    const acquire = (index: number): Promise<T> =>
+      index >= ids.length ? callback() : this.withMetadataLock(ids[index], () => acquire(index + 1));
+    return acquire(0);
   }
 
   @GenerateSql({ params: [DummyValue.UUID, ['description']] })

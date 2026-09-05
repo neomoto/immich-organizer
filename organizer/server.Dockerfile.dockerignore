@@ -1,0 +1,7 @@
+**
+!server
+!server/dist
+!server/dist/**
+!web
+!web/build
+!web/build/**

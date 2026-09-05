@@ -20,7 +20,7 @@ test(
       vision: { model: "test" },
     });
     try {
-      await sql`INSERT INTO owners(id,credential,settings) VALUES(${owner},${box.seal("fake")},${sql.json({ ...DEFAULTS, enabled: true, dailyLimit: 2 })}),
+      await sql`INSERT INTO owners(id,credential,settings) VALUES(${owner},${box.seal("fake")},${sql.json({ ...DEFAULTS, enabled: true, automatic: true, dailyLimit: 2 })}),
     (${other},${box.seal("other")},${sql.json(DEFAULTS)})`;
       const o = await engine.owner(owner);
       const reservations = await Promise.allSettled([
@@ -33,6 +33,8 @@ test(
         2,
       );
       await sql`INSERT INTO assets(owner,id,checksum,snapshot,status) VALUES(${owner},${id},'hash','{}','running')`;
+      const lease = randomUUID();
+      const [row] = await sql`UPDATE assets SET lease_token=${lease},lease_until=now()+interval '15 minutes' WHERE owner=${owner} AND id=${id} RETURNING *`;
       const change = randomUUID();
       await sql`INSERT INTO changes(id,owner,asset,before_value,after_value) VALUES(${change},${owner},${id},'{"description":null}','{"description":"caption"}')`;
       let writes = 0;
@@ -42,13 +44,13 @@ test(
         exifInfo: { description: "caption" },
       });
       engine.api = async (o, p, b) => {
-        if (p === `/assets/${id}`) writes++;
+        if (p === `/organizer/metadata/${id}`) writes++;
       return {writable: true};
       };
       await engine.apply(
         o,
         { id, exifInfo: {} },
-        { provenance: {} },
+        row,
         { event: null },
         { patch: {}, tags: [] },
       );
@@ -76,7 +78,7 @@ test(
           engine.apply(
             o,
             { id, exifInfo: {} },
-            { provenance: {} },
+            row,
             { event: null },
             { patch: {}, tags: [] },
           ),
@@ -85,7 +87,7 @@ test(
       await sql`UPDATE assets SET status='pending' WHERE owner=${owner}`;
       await sql`UPDATE owners SET settings=${sql.json({ ...DEFAULTS, enabled: false })} WHERE id=${owner}`;
       assert.equal(
-        await engine.work(),
+        await engine.work(owner),
         false,
         "paused users do not acquire work",
       );

@@ -204,4 +204,24 @@ describe(AssetRepository.name, () => {
       ).resolves.toEqual({ lockedProperties: null });
     });
   });
+
+  describe('withMetadataLock', () => {
+    it('serializes callbacks across database connections for one asset', async () => {
+      const { ctx, sut } = setup();
+      const { user } = await ctx.newUser();
+      const { asset } = await ctx.newAsset({ ownerId: user.id });
+      let active = 0;
+      let maximum = 0;
+      const callback = async () => {
+        active++;
+        maximum = Math.max(maximum, active);
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        active--;
+      };
+
+      await Promise.all([sut.withMetadataLock(asset.id, callback), sut.withMetadataLock(asset.id, callback)]);
+
+      expect(maximum).toBe(1);
+    });
+  });
 });

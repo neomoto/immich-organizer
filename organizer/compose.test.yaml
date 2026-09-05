@@ -1,0 +1,51 @@
+# Isolated local runtime check. All credentials and data are synthetic.
+name: immich-organizer-runtime-test
+services:
+  immich-server:
+    image: immich-organizer-server:test
+    ports: ['127.0.0.1:18283:2283']
+    environment:
+      DB_HOSTNAME: database
+      DB_USERNAME: postgres
+      DB_PASSWORD: synthetic-test-password
+      DB_DATABASE_NAME: immich
+      REDIS_HOSTNAME: redis
+      ORGANIZER_URL: http://organizer:8091
+      ORGANIZER_SECRET: synthetic-test-secret-at-least-32-characters
+    volumes: [test-media:/data]
+    depends_on: [database, redis, organizer]
+  database:
+    image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0@sha256:bcf63357191b76a916ae5eb93464d65c07511da41e3bf7a8416db519b40b1c23
+    environment:
+      POSTGRES_PASSWORD: synthetic-test-password
+      POSTGRES_DB: immich
+    volumes: [test-database:/var/lib/postgresql/data]
+  redis:
+    image: valkey/valkey:9@sha256:475ee65cc75c327407458f5096cdd36954b3de3fc83f4c8ac31a4a8edecbf49e
+  organizer:
+    image: immich-organizer-worker:test
+    environment:
+      ORGANIZER_DATABASE_URL: postgres://postgres:synthetic-test-password@organizer-db:5432/organizer
+      ORGANIZER_SECRET: synthetic-test-secret-at-least-32-characters
+      IMMICH_URL: http://immich-server:2283
+      VISION_BASE_URL: http://vision-mock:8092/v1
+      VISION_API_KEY: synthetic-mock-key
+    depends_on:
+      organizer-db:
+        condition: service_healthy
+  organizer-db:
+    image: postgres:16-bookworm@sha256:bb3e1a57e5407e0a5280b4211980a5e537f4abd234a87014ac979849a78dd825
+    environment:
+      POSTGRES_PASSWORD: synthetic-test-password
+      POSTGRES_DB: organizer
+    healthcheck:
+      test: [CMD-SHELL, pg_isready -U postgres]
+      interval: 2s
+      retries: 30
+  vision-mock:
+    image: node:22-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5
+    volumes: ['./test/vision-mock.mjs:/app/vision-mock.mjs:ro']
+    command: [node, /app/vision-mock.mjs]
+volumes:
+  test-media:
+  test-database:

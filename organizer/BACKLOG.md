@@ -25,8 +25,19 @@ must be published on the owner's GitHub.
 - [x] Initial 17 worker/policy/database tests passed with real PostgreSQL.
 - [x] Isolated local runtime test exercised login, connection, analysis via a synthetic
   vision responder, caption/tag application, and caption undo.
+- [x] Expanded organizer baseline runtime: eight checks passed after fixing v3 album
+  membership APIs and XMP null-tag deletion, including pilot boundaries, approximate
+  GPS, managed memberships, lost-ack undo recovery, pause, and access restrictions.
+- [x] Organizer UI: 12 component tests, TypeScript, Svelte, targeted lint, and production
+  build passed before adding the Keeper UI.
 - [ ] Revalidate the CURRENT working tree. It contains later uncommitted changes;
   previous passing results do not certify those changes.
+
+Latest integration checkpoint: current worker tests passed 52 cases (runtime excluded),
+UI passed 15 component tests plus TypeScript/Svelte/build, native metadata unit tests
+and four real ExifTool tests passed. The rebuilt isolated runtime passed nine checks,
+including Keeper tool calls/image hydration/session controls and organizer undo/access.
+Final hosted CI and release artifact verification are still required below.
 
 ## Work ownership
 
@@ -123,6 +134,33 @@ useful empty/error states, and passing relevant UI checks.
   with canonical metadata writes disabled. Measure results and quota usage.
 - [ ] E4: Validate undo/sidecars and mobile compatibility on a separate deployment; then
   deploy the verified release and enable automatic processing as already authorized.
+
+## F — Embedded photo keeper (user-approved addition)
+
+The user requested a pi-style harness inside Immich, with BOTH persistent chat and
+scheduled autonomous library housekeeping. This extends the accepted organizer plan.
+The lead coordinates; agents implement the harness, tools, and UI.
+
+Latest clarification: pi is inspiration, not a required dependency. Keep the harness
+small, minimal, and extensible. Long tasks must continue in the background after the
+browser closes and resume after worker restart or quota waits. Bound individual
+execution slices and tool operations, not the overall task's wall-clock duration.
+Use Luna with max reasoning for all subagents from this point onward.
+
+- [x] F1 — Backend: implement a minimal provider adapter and explicit extensible tool
+  registry/loop inspired by pi, persistent sessions and run/event
+  history, resumable execution, context management, cancellation, and bounded tool calls.
+- [x] F2 — Analysis: expose owner-scoped photo tools for library search, inspecting images
+  and original metadata, related-photo evidence, bounded web lookup, analysis runs,
+  supported metadata/album operations, and undo. No general shell/filesystem tools.
+- [x] F3 — UI: add a Keeper chat view inside Organize, session history, incremental replies,
+  tool activity/evidence, stop/retry, and schedule controls with housekeeping reports.
+- [x] F4 — Backend: daily autonomous schedule (default 03:00 NAS-local time), shared model
+  quota/concurrency, no overlapping runs, missed-run coalescing, and persisted outcomes.
+  Use bounded checkpoint slices with durable continuation; scheduled operations preserve
+  originals and existing sharing. Overall tasks may run for hours or days.
+- [x] F5 — All: test permission boundaries, model/tool failures, cancellation, restart
+  recovery, duplicate scheduling, budget exhaustion, evidence integrity, and undo.
 
 ## Local test environment
 

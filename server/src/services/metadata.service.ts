@@ -488,55 +488,65 @@ export class MetadataService extends BaseService {
   @OnJob({ name: JobName.SidecarWrite, queue: QueueName.Sidecar })
   async handleSidecarWrite(job: JobOf<JobName.SidecarWrite>): Promise<JobStatus> {
     const { id } = job;
-    const asset = await this.assetJobRepository.getForSidecarWriteJob(id);
-    if (!asset) {
-      return JobStatus.Failed;
+    const write = async () => {
+      const asset = await this.assetJobRepository.getForSidecarWriteJob(id);
+      if (!asset) {
+        return JobStatus.Failed;
+      }
+
+      const lockedProperties = await this.assetJobRepository.getLockedPropertiesForMetadataExtraction(id);
+
+      const { sidecarFile } = getAssetFiles(asset.files);
+      const sidecarPath = sidecarFile?.path || `${asset.originalPath}.xmp`;
+
+      const { description, dateTimeOriginal, latitude, longitude, rating, tags, timeZone } = _.pick(
+        {
+          description: asset.exifInfo.description,
+          dateTimeOriginal: asset.exifInfo.dateTimeOriginal,
+          latitude: asset.exifInfo.latitude,
+          longitude: asset.exifInfo.longitude,
+          rating: asset.exifInfo.rating ?? 0,
+          tags: asset.exifInfo.tags,
+          timeZone: asset.exifInfo.timeZone,
+        },
+        lockedProperties,
+      );
+
+      const exif = _.omitBy(
+        <Tags>{
+          Description: description,
+          ImageDescription: description,
+          DateTimeOriginal: dateTimeOriginal === null ? null : mergeTimeZone(dateTimeOriginal, timeZone)?.toISO(),
+          GPSLatitude: latitude,
+          GPSLongitude: longitude,
+          Rating: rating,
+          TagsList: tags,
+        },
+        _.isUndefined,
+      );
+
+      if (Object.keys(exif).length === 0) {
+        return JobStatus.Skipped;
+      }
+
+      await this.metadataRepository.writeTags(sidecarPath, exif);
+
+      if (asset.files.length === 0) {
+        await this.assetRepository.upsertFile({ assetId: id, type: AssetFileType.Sidecar, path: sidecarPath });
+      }
+
+      await this.assetRepository.unlockProperties(asset.id, lockedProperties);
+
+      return JobStatus.Success;
+    };
+
+    // Keep the EXIF snapshot, filesystem write, and lock release in one
+    // PostgreSQL advisory lock. Older jobs then finish before newer EXIF
+    // updates can be read by a sidecar writer.
+    if (typeof this.assetRepository.withMetadataLock === 'function') {
+      return this.assetRepository.withMetadataLock(id, write);
     }
-
-    const lockedProperties = await this.assetJobRepository.getLockedPropertiesForMetadataExtraction(id);
-
-    const { sidecarFile } = getAssetFiles(asset.files);
-    const sidecarPath = sidecarFile?.path || `${asset.originalPath}.xmp`;
-
-    const { description, dateTimeOriginal, latitude, longitude, rating, tags, timeZone } = _.pick(
-      {
-        description: asset.exifInfo.description,
-        dateTimeOriginal: asset.exifInfo.dateTimeOriginal,
-        latitude: asset.exifInfo.latitude,
-        longitude: asset.exifInfo.longitude,
-        rating: asset.exifInfo.rating ?? 0,
-        tags: asset.exifInfo.tags,
-        timeZone: asset.exifInfo.timeZone,
-      },
-      lockedProperties,
-    );
-
-    const exif = _.omitBy(
-      <Tags>{
-        Description: description,
-        ImageDescription: description,
-        DateTimeOriginal: mergeTimeZone(dateTimeOriginal, timeZone)?.toISO(),
-        GPSLatitude: latitude,
-        GPSLongitude: longitude,
-        Rating: rating,
-        TagsList: tags,
-      },
-      _.isUndefined,
-    );
-
-    if (Object.keys(exif).length === 0) {
-      return JobStatus.Skipped;
-    }
-
-    await this.metadataRepository.writeTags(sidecarPath, exif);
-
-    if (asset.files.length === 0) {
-      await this.assetRepository.upsertFile({ assetId: id, type: AssetFileType.Sidecar, path: sidecarPath });
-    }
-
-    await this.assetRepository.unlockProperties(asset.id, lockedProperties);
-
-    return JobStatus.Success;
+    return write();
   }
 
   private getSidecarCandidates({ files, originalPath }: { files: AssetFile[]; originalPath: string }) {
