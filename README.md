@@ -9,8 +9,8 @@ The analysis worker is independent of the interface. The small server/web integr
 uses Immich login and the existing photo viewer. This fork is based on Immich v3.1.0.
 It is not an official Immich release. Use a separate test deployment for the pilot.
 
-The current prerelease is `0.1.0-alpha.2`. Synthetic checks cover the integrated workflow.
-Live GLM quality and production rollout remain pending. See the setup guide for analysis limits,
+The current prerelease is `0.1.0-alpha.3`. Synthetic checks cover the integrated workflow.
+Live GLM quality and the alpha3 rollout remain pending. See the setup guide for analysis limits,
 matching server/worker builds, private source manifests, and recovery instructions.
 
 The original upstream project documentation follows.

@@ -1,6 +1,6 @@
 FROM node:22-bookworm-slim@sha256:83f487e0a63425e5b4d146fb5e5be574bcbe1b7b843d3ebafdd95eaf7767a7e5
 ARG SOURCE_COMMIT
-ARG VERSION=0.1.0-alpha.2
+ARG VERSION=0.1.0-alpha.3
 LABEL org.opencontainers.image.source="https://github.com/neomoto/immich-organizer" \
       org.opencontainers.image.revision="${SOURCE_COMMIT}" \
       org.opencontainers.image.version="${VERSION}" \

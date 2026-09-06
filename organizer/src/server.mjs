@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import { timingSafeEqual, randomUUID } from "node:crypto";
-import { connect, secretBox, claimRun, completeRun, scheduleCatchup } from "./store.mjs";
+import { connect, secretBox, claimRun, completeRun, scheduleCatchup, reconcileHiddenAssets } from "./store.mjs";
 import { DEFAULTS, unchanged, validDay } from "./policy.mjs";
 import { Engine } from "./engine.mjs";
 import { loadConfig } from "./config.mjs";
@@ -25,6 +25,9 @@ import { getSchedule, KeeperScheduler, setSchedule } from "./keeper/scheduler.mj
 const secret = process.env.ORGANIZER_SECRET;
 const box = secretBox(secret);
 const sql = await connect(process.env.ORGANIZER_DATABASE_URL);
+const hiddenAssetsReconciled = await reconcileHiddenAssets(sql);
+if (hiddenAssetsReconciled)
+  console.info(`Reconciled ${hiddenAssetsReconciled} hidden Organizer asset rows`);
 const aiConfig = loadConfig(process.env);
 const engine = new Engine(sql, box, {
   immich: process.env.IMMICH_URL || "http://immich-server:2283",

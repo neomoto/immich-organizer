@@ -56,6 +56,11 @@ endpoint and local MCP with the configured administrator-owned key, using only a
 synthetic logo. No key value is stored here. The smoke does not cover private-photo
 quality, the authorized 200-asset pilot, or a production deployment.
 
+Alpha3 remediation: `visibility=hidden` Live Photo companions are excluded before inventory
+and analysis. Worker startup removes legacy hidden rows from the derived `assets` table only;
+it preserves media, journals, events, owners, and source manifests. Timeline and archive assets
+remain eligible. The read-only pilot must be rerun after this reconciliation.
+
 ## Work ownership
 
 The lead coordinates, reviews, integrates, and publishes. Subagents write code.

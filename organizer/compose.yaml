@@ -1,12 +1,12 @@
 # Merge with Immich's release Compose file. Keep .env private.
 services:
   immich-server:
-    image: ghcr.io/neomoto/immich-organizer-server:${ORGANIZER_VERSION:-0.1.0-alpha.2}
+    image: ghcr.io/neomoto/immich-organizer-server:${ORGANIZER_VERSION:-0.1.0-alpha.3}
     environment:
       ORGANIZER_URL: http://organizer:8091
       ORGANIZER_SECRET: ${ORGANIZER_SECRET:?Set a random 32-character or longer secret}
   organizer:
-    image: ghcr.io/neomoto/immich-organizer-worker:${ORGANIZER_VERSION:-0.1.0-alpha.2}
+    image: ghcr.io/neomoto/immich-organizer-worker:${ORGANIZER_VERSION:-0.1.0-alpha.3}
     restart: unless-stopped
     environment:
       ORGANIZER_DATABASE_URL: postgres://organizer:${ORGANIZER_DB_PASSWORD:?Set database password}@organizer-db:5432/organizer

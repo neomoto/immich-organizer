@@ -14,7 +14,8 @@ export const DEFAULTS = Object.freeze({
 export const digest = (value) =>
   createHash("sha256").update(JSON.stringify(value)).digest("hex");
 export const eligible = (a) =>
-  !a.isTrashed && !a.isOffline && a.visibility !== "locked" && !a.deletedAt;
+  !a.isTrashed && !a.isOffline && !a.deletedAt &&
+  !["locked", "hidden"].includes(a.visibility);
 export function validDay(value) {
   return (
     typeof value === "string" &&

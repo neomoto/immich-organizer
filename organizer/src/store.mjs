@@ -189,6 +189,20 @@ export async function connect(url, migrationAttempt = 0) {
   return sql;
 }
 
+// Hidden Immich assets can appear in the derived queue after an upgrade from a
+// worker that did not yet enforce the visibility policy. Remove only those
+// derived rows. Their source media and every other Organizer relation remain
+// untouched, and the query returns only an aggregate count for safe logging.
+export async function reconcileHiddenAssets(sql) {
+  const [result] = await sql`WITH removed AS (
+    DELETE FROM assets
+    WHERE snapshot->>'visibility' = 'hidden'
+    RETURNING 1
+  )
+  SELECT count(*)::int AS count FROM removed`;
+  return Number(result?.count || 0);
+}
+
 export async function claimRun(sql, ownerId = null) {
   const leaseToken = randomUUID();
   const [run] = await sql`WITH candidate AS (

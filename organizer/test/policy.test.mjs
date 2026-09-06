@@ -111,9 +111,15 @@ test("approximate coordinates honor preference and locks", () => {
 });
 test("rejects overwriting a newer edit during undo", () =>
   assert.equal(unchanged(asset, { description: "Something else" }), false));
-test("locked and deleted assets are excluded", () => {
+test("locked and hidden assets are excluded while timeline and archive remain eligible", () => {
   assert.equal(eligible({ visibility: "locked" }), false);
-  assert.equal(eligible({ isTrashed: true }), false);
+  for (const type of ["IMAGE", "VIDEO"])
+    assert.equal(eligible({ visibility: "hidden", type }), false);
+  assert.equal(eligible({ visibility: "timeline" }), true);
+  assert.equal(eligible({ visibility: "archive" }), true);
+  assert.equal(eligible({ isTrashed: true, visibility: "timeline" }), false);
+  assert.equal(eligible({ isOffline: true, visibility: "timeline" }), false);
+  assert.equal(eligible({ deletedAt: "2026-09-05T00:00:00.000Z", visibility: "timeline" }), false);
 });
 test("events do not cross owner or source groups", () => {
   const o = observation();

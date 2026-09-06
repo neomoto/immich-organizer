@@ -48,6 +48,31 @@ test("neighbor context omits newly hidden assets before sharing source metadata"
   const context=await engine.context({id:"owner"},{provenance:{group:"g",filename:"target"},facts:{}},{id:"target"});
   assert.deepEqual(context.neighbors.map(n=>n.id),["visible"]);
 });
+test("hidden assets stop before provider or media access", async () => {
+  const hidden = {
+    ...row,
+    owner: "owner",
+    id: "asset",
+    snapshot: { id: "asset", ownerId: "owner", visibility: "hidden", type: "VIDEO" },
+  };
+  const { sql, queries } = harness((query) => query.includes("RETURNING *") ? [hidden] : []);
+  const engine = new Engine(sql, {}, { aiProvider: "direct", vision: { key: "synthetic" } });
+  engine.owner = async () => ({ id: "owner", settings: { enabled: true } });
+  let providerCalls = 0;
+  let mediaCalls = 0;
+  engine.modelCall = async () => { providerCalls++; };
+  engine.images = async () => { mediaCalls++; };
+  engine.api = async (_owner, path) => {
+    if (path === "/assets/asset") return { ...hidden.snapshot };
+    if (path.includes("thumbnail") || path.endsWith("/original")) mediaCalls++;
+    return {};
+  };
+
+  assert.equal(await engine.work(), true);
+  assert.equal(providerCalls, 0);
+  assert.equal(mediaCalls, 0);
+  assert.ok(queries.some(({ query }) => query.includes("attempts=")), "the queued row is retried without analysis");
+});
 test("oversize original response is cancelled before downloading bytes",async t=>{
   let cancelled=false;
   t.mock.method(globalThis,"fetch",async()=>new Response(new ReadableStream({cancel(){cancelled=true;}}),{headers:{"content-length":String(33*1024*1024)}}));
