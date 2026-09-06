@@ -61,6 +61,11 @@ and analysis. Worker startup removes legacy hidden rows from the derived `assets
 it preserves media, journals, events, owners, and source manifests. Timeline and archive assets
 remain eligible. The read-only pilot must be rerun after this reconciliation.
 
+Alpha3 was tagged but not released: tagged CI run `34002928561` passed the worker, database,
+server, and build checks, then exposed a race in the isolated runtime assertion. The assertion
+could accept the prior analyzed revision immediately after a reanalysis run was queued. Alpha4
+waits for a changed analysis result marker and settled canonical metadata, tags, and album state.
+
 ## Work ownership
 
 The lead coordinates, reviews, integrates, and publishes. Subagents write code.

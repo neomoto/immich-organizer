@@ -22,12 +22,12 @@ The code requires live validation with the configured vision endpoint and a sepa
 Immich deployment before use on an irreplaceable archive. A passing filesystem check
 does not replace a backup. Back up both Immich and the organizer database before upgrades.
 
-This prerelease is `0.1.0-alpha.3`. Live GLM quality, production rollout, and physical
+This prerelease is `0.1.0-alpha.4`. Live GLM quality, production rollout, and physical
 mobile compatibility checks remain incomplete. Local synthetic tests do not measure model quality.
 
 Immich Live Photo companion assets with `visibility=hidden` are not eligible Organizer items.
 They are excluded from inventory, provider/media analysis, and standalone Organizer results;
-timeline and archive assets remain eligible. At worker startup, alpha3 removes legacy hidden
+timeline and archive assets remain eligible. At worker startup, alpha4 removes legacy hidden
 rows from the derived Organizer `assets` table only. It does not mutate Immich media, originals,
 changes/history, events, owners, or source manifests, and it does not generate thumbnails.
 

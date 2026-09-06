@@ -1,8 +1,14 @@
-# Immich Organize and Keeper — 0.1.0-alpha.3
+# Immich Organize and Keeper — 0.1.0-alpha.3 (unreleased)
 
-Experimental alpha3 maintenance release based on Immich v3.1.0. This release keeps the
-shared-admin Z.AI Coding Plan provider and direct standard API mode from alpha2, and fixes
-hidden Immich Live Photo companion enrollment.
+Alpha3 was tagged but not released. Tagged CI run `34002928561` passed the worker, database,
+server, and build checks, then failed its isolated runtime test because the automatic reanalysis
+assertion could accept the prior analyzed revision immediately after inventory completed. No
+alpha3 images or prerelease were published. The hidden-companion changes below are carried into
+alpha4 with a deterministic runtime assertion.
+
+The intended alpha3 maintenance change was based on Immich v3.1.0. It kept the shared-admin
+Z.AI Coding Plan provider and direct standard API mode from alpha2, and fixed hidden Immich
+Live Photo companion enrollment.
 
 ## Hidden companion handling
 
@@ -20,7 +26,7 @@ hidden Immich Live Photo companion enrollment.
 ## Provider/version maintenance
 
 - Current package, image defaults, Compose defaults, `.env.example`, and MCP client label are
-  `0.1.0-alpha.3`.
+  `0.1.0-alpha.3` (historical, unreleased).
 - Coding Plan text remains `glm-5.3` through the Coding endpoint. Vision remains the bundled
   pinned Z.AI MCP over stdio. No provider key is stored in this release.
 

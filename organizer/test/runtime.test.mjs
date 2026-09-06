@@ -60,6 +60,7 @@ test('isolated Immich session, analysis, mutations, undo and authorization', { s
     });
     const id = await upload(`runtime-${suffix}.png`);
     let analysis;
+    let previousAnalysisMarker;
     await t.test('synthetic model produces results without canonical pilot writes', async () => {
       const run = success(await api('/organizer/runs', { assetIds: [id], limit: 100000, reanalyze: true }));
       assert.equal(run.requested, 200, 'pilot request must be clamped');
@@ -70,6 +71,8 @@ test('isolated Immich session, analysis, mutations, undo and authorization', { s
       assert.equal(asset.exifInfo.latitude ?? null, null);
       assert.equal(asset.exifInfo.description || '', '');
       assert.equal(asset.tags.some(tag => tag.value === 'AI/Synthetic'), false);
+      assert.ok(analysis.result?.contextHash, 'initial analysis must expose a result marker');
+      previousAnalysisMarker = analysis.result.contextHash;
       success(await api('/organizer/manifest', { entries: [{
         checksum: asset.checksum, paths: [`/synthetic/夏/${suffix}.png`], filename: `${suffix}.png`,
         group: `/synthetic/夏/${suffix}`, verified: true, captureDate: '2014-08-12T10:00:00+03:00',
@@ -80,16 +83,33 @@ test('isolated Immich session, analysis, mutations, undo and authorization', { s
       success(await api('/organizer/settings', { automatic: true }, 'PUT'));
       const run = success(await api('/organizer/runs', { assetIds: [id], limit: 1, reanalyze: true }));
       await until(async () => success(await api('/organizer/status')).runs.find(r => r.id === run.runId), r => r?.status === 'complete', 'automatic inventory did not finish');
-      analysis = await until(async () => success(await api('/organizer/assets/' + id)), a => a?.status === 'analyzed' && a?.provenance?.group, 'automatic analysis did not finish');
-      const after = success(await api('/assets/' + id));
+      analysis = await until(
+        async () => success(await api('/organizer/assets/' + id)),
+        a => a?.status === 'analyzed' && a?.provenance?.group &&
+          a?.result?.contextHash && a.result.contextHash !== previousAnalysisMarker,
+        'automatic analysis did not finish a new revision',
+      );
+      const canonical = await until(async () => ({
+        asset: success(await api('/assets/' + id)),
+        events: success(await api('/organizer/events')),
+        albums: success(await api('/albums?assetId=' + id)),
+      }), state => {
+        const event = state.events[0];
+        return state.asset.exifInfo?.description === analysis.result.caption &&
+          state.asset.exifInfo?.latitude === 48.8566 &&
+          state.asset.exifInfo?.longitude === 2.3522 &&
+          state.asset.tags?.some(tag => tag.value === 'AI/Synthetic') &&
+          event && state.albums.some(album => album.id === event.album);
+      }, 'automatic canonical application did not settle');
+      const after = canonical.asset;
       assert.equal(after.exifInfo.description, analysis.result.caption);
       assert.equal(after.exifInfo.latitude, 48.8566);
       assert.equal(after.exifInfo.longitude, 2.3522);
       assert.equal(analysis.proposal.locationApproximate, true);
       assert.ok(after.tags.some(tag => tag.value === 'AI/Synthetic'));
-      const events = success(await api('/organizer/events'));
+      const events = canonical.events;
       assert.ok(events.length > 0);
-      assert.ok(success(await api('/albums?assetId=' + id)).some(album => album.id === events[0].album));
+      assert.ok(canonical.albums.some(album => album.id === events[0].album));
     });
     await t.test('Keeper persists chat, executes native tools, hydrates pixels, schedules housekeeping and isolates owners', async () => {
       const session = success(await api('/organizer/keeper/sessions', { title: 'Runtime Keeper' }));
