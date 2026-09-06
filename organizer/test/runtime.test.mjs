@@ -158,13 +158,21 @@ test('isolated Immich session, analysis, mutations, undo and authorization', { s
         assert.equal(success(await api('/organizer/undo/' + change.id, {})).undone, true);
         assert.equal(success(await api('/organizer/undo/' + change.id, {})).undone, true, 'undo replay must be idempotent');
       }
-      const restored = success(await api('/assets/' + id));
+      const restored = await until(async () => success(await api('/assets/' + id)), asset =>
+        (asset.exifInfo?.latitude ?? null) === (metadataChange.before_value.latitude ?? null) &&
+        (asset.exifInfo?.longitude ?? null) === (metadataChange.before_value.longitude ?? null) &&
+        (asset.exifInfo?.description || '') === (metadataChange.before_value.description || '') &&
+        !asset.tags?.some(tag => tag.value === 'AI/Synthetic'),
+      'canonical metadata undo did not settle');
       assert.equal(restored.exifInfo.latitude ?? null, null);
       assert.equal(restored.exifInfo.longitude ?? null, null);
       assert.equal(restored.exifInfo.description || '', metadataChange.before_value.description || '');
       assert.ok(!restored.tags.some(tag => tag.value === 'AI/Synthetic'));
-      for (const c of changes.filter(c => c.kind === 'album'))
-        assert.ok(!success(await api('/albums?assetId=' + id)).some(album => album.id === c.before_value.albumId));
+      for (const c of changes.filter(c => c.kind === 'album')) {
+        await until(async () => success(await api('/albums?assetId=' + id)), albums =>
+          !albums.some(album => album.id === c.before_value.albumId),
+        'canonical album undo did not settle');
+      }
     });
     await t.test('undo resumes after native restore but before worker acknowledgment', async () => {
       assert.match(metadataChange.id, /^[0-9a-f-]{36}$/);

@@ -55,7 +55,7 @@ export class ZaiVisionMcpProvider {
     this.timeoutMs = timeoutMs;
     this.mode = mode;
     this.extraEnv = extraEnv;
-    this.clientFactory = clientFactory || (() => new Client({ name: "immich-organizer", version: "0.1.0-alpha.4" }));
+    this.clientFactory = clientFactory || (() => new Client({ name: "immich-organizer", version: "0.1.0-alpha.5" }));
     this.transportFactory = transportFactory || ((params) => new StdioClientTransport(params));
     this.status = status;
   }

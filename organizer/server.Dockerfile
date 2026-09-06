@@ -4,7 +4,7 @@ FROM ghcr.io/immich-app/immich-server:v3.1.0@sha256:b434cb9287eea1471c9974845914
 COPY server/dist /usr/src/app/server/dist
 COPY web/build /build/www
 ARG SOURCE_COMMIT
-ARG VERSION=0.1.0-alpha.4
+ARG VERSION=0.1.0-alpha.5
 LABEL org.opencontainers.image.source="https://github.com/neomoto/immich-organizer" \
       org.opencontainers.image.revision="${SOURCE_COMMIT}" \
       org.opencontainers.image.version="${VERSION}" \

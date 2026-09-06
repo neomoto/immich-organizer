@@ -6,7 +6,8 @@
   "private": true,
   "scripts": {
     "format": "prettier --cache --check i18n/",
-    "format:fix": "prettier --cache --write --list-different i18n"
+    "format:fix": "prettier --cache --write --list-different i18n",
+    "organizer:dev": "./scripts/organizer-dev.sh"
   },
   "packageManager": "pnpm@11.13.1",
   "engines": {

@@ -66,6 +66,15 @@ server, and build checks, then exposed a race in the isolated runtime assertion.
 could accept the prior analyzed revision immediately after a reanalysis run was queued. Alpha4
 waits for a changed analysis result marker and settled canonical metadata, tags, and album state.
 
+- [x] Add a loopback-only Mac hot-reload launcher for the synthetic Compose stack, with an
+  explicit NAS opt-in, non-destructive status/stop commands, and opt-in backend image rebuilds.
+
+Alpha4 was tagged but not released: tagged CI run `34003460084` passed the deterministic
+automatic reanalysis stage and then exposed a second canonical-settlement race immediately after
+undo. Alpha5 retains both bounded polling fixes. The current alpha5 launcher also supports the
+explicit NAS UI handoff `pnpm organizer:dev -- --nas`; alpha3 and alpha4 remain historical,
+unreleased tags because of their CI races.
+
 ## Work ownership
 
 The lead coordinates, reviews, integrates, and publishes. Subagents write code.

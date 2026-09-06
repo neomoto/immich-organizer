@@ -22,12 +22,12 @@ The code requires live validation with the configured vision endpoint and a sepa
 Immich deployment before use on an irreplaceable archive. A passing filesystem check
 does not replace a backup. Back up both Immich and the organizer database before upgrades.
 
-This prerelease is `0.1.0-alpha.4`. Live GLM quality, production rollout, and physical
+This prerelease is `0.1.0-alpha.5`. Live GLM quality, production rollout, and physical
 mobile compatibility checks remain incomplete. Local synthetic tests do not measure model quality.
 
 Immich Live Photo companion assets with `visibility=hidden` are not eligible Organizer items.
 They are excluded from inventory, provider/media analysis, and standalone Organizer results;
-timeline and archive assets remain eligible. At worker startup, alpha4 removes legacy hidden
+timeline and archive assets remain eligible. At worker startup, alpha5 removes legacy hidden
 rows from the derived Organizer `assets` table only. It does not mutate Immich media, originals,
 changes/history, events, owners, or source manifests, and it does not generate thumbnails.
 
@@ -121,6 +121,41 @@ idempotent tool operation may finish its current checkpoint.
 
 Do not expose the worker or its database through router forwarding. Back up
 `ORGANIZER_SECRET` securely: it encrypts the worker's stored Immich credentials.
+
+## Mac hot-reload development
+
+From the repository root, start the local synthetic Immich stack and a Vite server:
+
+```sh
+pnpm organizer:dev
+```
+
+The launcher validates `organizer/compose.test.yaml`, starts the existing local images
+without rebuilding them, waits for `http://127.0.0.1:18283/api/server/ping`, and serves
+the Organize page at `http://127.0.0.1:3000/organize`. Vite binds only to loopback and
+opens that page on macOS. The synthetic login is printed by the launcher:
+
+```text
+email:    organizer-test@example.invalid
+password: Synthetic-local-test-password!
+```
+
+Use `./scripts/organizer-dev.sh --rebuild-backend` only after server or worker changes.
+The default start path does not rebuild Docker images. Check or stop the named local
+project without touching unrelated processes:
+
+```sh
+pnpm organizer:dev -- check
+pnpm organizer:dev -- status
+pnpm organizer:dev -- stop
+```
+
+The default rejects a non-loopback `IMMICH_SERVER_URL`. `./scripts/organizer-dev.sh --nas`
+is an explicit opt-in that skips local Compose and proxies only the Vite UI to
+`http://192.168.4.81:2283`; UI actions then affect the NAS. It never changes Organizer
+settings or enables automatic changes, so confirm the NAS is paused before any write.
+Use `--unsafe-backend URL` only for another explicitly intended backend. The launcher
+never connects directly to PostgreSQL.
 
 ## Source context
 
